@@ -7,6 +7,7 @@ const port = 3000;
 const competenciasRoutes = require('./src/routes/competencias');
 const authRoutes = require('./src/routes/auth'); 
 const postulacionesRoutes = require('./src/routes/postulaciones');
+const ofertasRoutes = require('./src/routes/ofertas');
 
 //(configuraciones generales)
 app.use(express.json());
@@ -15,6 +16,8 @@ app.use(express.static('public'));
 // 3. Definición de las apis
 app.use('/api/competencias', competenciasRoutes);
 app.use('/api/auth', authRoutes); //LOGIN/REGISTRO
+app.use('/api/postulaciones', postulacionesRoutes);
+app.use('/api/ofertas', ofertasRoutes);
 
 
 app.get('/', (req, res) => {

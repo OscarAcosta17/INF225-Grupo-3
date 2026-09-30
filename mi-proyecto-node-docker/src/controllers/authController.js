@@ -2,20 +2,28 @@ const pool = require('../../db');
 
 //registro de usuario
 const registrarUsuario = async (req, res) => {
-  const { correo, contrasena, nombres, apellidos } = req.body;
+  const { correo, contrasena, nombres, apellidos, rol, nombre_empresa } = req.body;
+  const userRole = rol || 'estudiante';
 
   try {
     const userResult = await pool.query(
-      'INSERT INTO usuarios (correo, contrasena_hash) VALUES ($1, $2) RETURNING id',
-      [correo, contrasena]
+      'INSERT INTO usuarios (correo, contrasena_hash, rol) VALUES ($1, $2, $3) RETURNING id',
+      [correo, contrasena, userRole]
     );
     
     const nuevoUsuarioId = userResult.rows[0].id;
 
-    await pool.query(
-      'INSERT INTO estudiantes (usuario_id, nombres, apellidos) VALUES ($1, $2, $3)',
-      [nuevoUsuarioId, nombres, apellidos]
-    );
+    if (userRole === 'empresa') {
+      await pool.query(
+        'INSERT INTO empresas (usuario_id, nombre_empresa) VALUES ($1, $2)',
+        [nuevoUsuarioId, nombre_empresa]
+      );
+    } else {
+      await pool.query(
+        'INSERT INTO estudiantes (usuario_id, nombres, apellidos) VALUES ($1, $2, $3)',
+        [nuevoUsuarioId, nombres, apellidos]
+      );
+    }
 
     res.status(201).json({ mensaje: 'Usuario registrado exitosamente' });
 
@@ -30,22 +38,40 @@ const loginUsuario = async (req, res) => {
   const { correo, contrasena } = req.body;
 
   try {
-    
-    const result = await pool.query(
-      `SELECT u.id AS usuario_id, e.id AS estudiante_id, e.nombres, e.perfil_configurado 
-       FROM usuarios u
-       JOIN estudiantes e ON u.id = e.usuario_id
-       WHERE u.correo = $1 AND u.contrasena_hash = $2`,
+    // Primero obtenemos el usuario y su rol
+    const userResult = await pool.query(
+      'SELECT id, correo, rol FROM usuarios WHERE correo = $1 AND contrasena_hash = $2',
       [correo, contrasena]
     );
 
-    if (result.rows.length === 0) {
+    if (userResult.rows.length === 0) {
       return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+    }
+
+    const usuario = userResult.rows[0];
+    let profileInfo = {};
+
+    if (usuario.rol === 'empresa') {
+      const empresaResult = await pool.query(
+        'SELECT id, nombre_empresa FROM empresas WHERE usuario_id = $1',
+        [usuario.id]
+      );
+      profileInfo = empresaResult.rows[0];
+    } else {
+      const estudianteResult = await pool.query(
+        'SELECT id, nombres, perfil_configurado FROM estudiantes WHERE usuario_id = $1',
+        [usuario.id]
+      );
+      profileInfo = estudianteResult.rows[0];
     }
 
     res.json({
       mensaje: 'Login exitoso',
-      usuario: result.rows[0]
+      usuario: {
+        usuario_id: usuario.id,
+        rol: usuario.rol,
+        ...profileInfo
+      }
     });
 
   } catch (err) {
