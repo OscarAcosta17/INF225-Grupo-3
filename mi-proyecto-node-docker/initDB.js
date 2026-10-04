@@ -178,6 +178,8 @@ const createTables = async () => {
       ON CONFLICT DO NOTHING;
       
       SELECT setval('ofertas_id_seq', (SELECT MAX(id) FROM ofertas));
+      SELECT setval('usuarios_id_seq', (SELECT MAX(id) FROM usuarios));
+      SELECT setval('empresas_id_seq', (SELECT MAX(id) FROM empresas));
     `);
     console.log("Datos de prueba completos cargados exitosamente.");
 
