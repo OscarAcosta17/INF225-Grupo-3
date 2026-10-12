@@ -1,25 +1,85 @@
 const pool = require('../../db');
 
-// Crear una nueva oferta
+// Validación común para RS2.1 y RS2.2
+const validarDatosOferta = ({ titulo, descripcion, requisitos, fecha_cierre, localidad, modalidad, remuneracion, duracion, competencias }) => {
+  const errores = [];
+
+  if (!titulo || !titulo.trim()) {
+    errores.push('El título de la oferta es obligatorio.');
+  }
+  if (!descripcion || !descripcion.trim()) {
+    errores.push('La descripción es obligatoria.');
+  }
+  if (!requisitos || !requisitos.trim()) {
+    errores.push('Los requisitos son obligatorios.');
+  }
+  if (!fecha_cierre || isNaN(Date.parse(fecha_cierre))) {
+    errores.push('La fecha de cierre es obligatoria y debe ser una fecha válida.');
+  }
+  if (!localidad || !localidad.trim()) {
+    errores.push('La localidad es obligatoria.');
+  }
+  if (!modalidad || !modalidad.trim()) {
+    errores.push('La modalidad es obligatoria.');
+  }
+
+  if (!remuneracion || !String(remuneracion).trim()) {
+    errores.push('La remuneración es obligatoria.');
+  } else {
+    const remStr = String(remuneracion).trim();
+    if (/-\s*\d+/.test(remStr)) {
+      errores.push('La remuneración no puede contener valores negativos.');
+    }
+  }
+
+  if (!duracion || !String(duracion).trim()) {
+    errores.push('La duración es obligatoria.');
+  } else {
+    const durStr = String(duracion).trim();
+    const match = durStr.match(/-?\d+(\.\d+)?/);
+    if (match) {
+      const num = parseFloat(match[0]);
+      if (num <= 0) {
+        errores.push('La duración debe ser mayor a 0 meses.');
+      }
+    }
+  }
+
+  if (!competencias || !Array.isArray(competencias) || competencias.length === 0) {
+    errores.push('Debe detallar al menos una tecnología o competencia técnica.');
+  }
+
+  return errores;
+};
+
+// Crear una nueva oferta (RS2.1 - P-05)
 const crearOferta = async (req, res) => {
-  const { empresa_id, titulo, descripcion, requisitos, fecha_cierre, competencias } = req.body;
+  const { empresa_id, titulo, descripcion, requisitos, fecha_cierre, competencias, localidad, modalidad, remuneracion, duracion } = req.body;
+
+  if (!empresa_id) {
+    return res.status(401).json({ error: 'No autorizado: Se requiere identificación de empresa.' });
+  }
+
+  const errores = validarDatosOferta({ titulo, descripcion, requisitos, fecha_cierre, localidad, modalidad, remuneracion, duracion, competencias });
+  if (errores.length > 0) {
+    return res.status(400).json({ error: errores.join(' '), errores });
+  }
 
   try {
     const result = await pool.query(
-      'INSERT INTO ofertas (empresa_id, titulo, descripcion, requisitos, fecha_cierre) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [empresa_id, titulo, descripcion, requisitos, fecha_cierre]
+      `INSERT INTO ofertas (empresa_id, titulo, descripcion, requisitos, fecha_cierre, localidad, modalidad, remuneracion, duracion)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [empresa_id, titulo.trim(), descripcion.trim(), requisitos.trim(), fecha_cierre, localidad.trim(), modalidad.trim(), String(remuneracion).trim(), String(duracion).trim()]
     );
 
     const nuevaOfertaId = result.rows[0].id;
 
-    // Insertar competencias si existen
-    if (competencias && competencias.length > 0) {
-      const insertCompetenciasQuery = `
-        INSERT INTO oferta_competencia (oferta_id, competencia_id)
-        SELECT $1, unnest($2::int[])
-      `;
-      await pool.query(insertCompetenciasQuery, [nuevaOfertaId, competencias]);
-    }
+    // Insertar competencias (obligatorias por RS2.1)
+    const insertCompetenciasQuery = `
+      INSERT INTO oferta_competencia (oferta_id, competencia_id)
+      SELECT $1, unnest($2::int[])
+    `;
+    await pool.query(insertCompetenciasQuery, [nuevaOfertaId, competencias]);
 
     res.status(201).json({ mensaje: 'Oferta publicada exitosamente', ofertaId: nuevaOfertaId });
   } catch (err) {
@@ -63,8 +123,19 @@ const obtenerOfertas = async (req, res) => {
       whereClauses.push(`modalidad = $${params.length}`);
     }
     if (remuneracion) {
-      params.push(remuneracion);
-      whereClauses.push(`remuneracion = $${params.length}`);
+      if (remuneracion === 'mayor_300k' || remuneracion.toLowerCase().includes('300')) {
+        // CP-RS3.1-01: Filtro por monto mayor a $300.000
+        whereClauses.push(`(NULLIF(regexp_replace(remuneracion, '[^0-9]', '', 'g'), '')::numeric > 300000)`);
+      } else if (remuneracion === 'Pagada') {
+        // Compatible con 'Pagada' y con montos monetarios ingresados
+        whereClauses.push(`(remuneracion = 'Pagada' OR (NULLIF(regexp_replace(remuneracion, '[^0-9]', '', 'g'), '')::numeric > 0))`);
+      } else if (remuneracion === 'No pagada') {
+        // Compatible con 'No pagada' o $0
+        whereClauses.push(`(remuneracion = 'No pagada' OR remuneracion ILIKE '%no pagada%' OR NULLIF(regexp_replace(remuneracion, '[^0-9]', '', 'g'), '')::numeric = 0)`);
+      } else {
+        params.push(remuneracion);
+        whereClauses.push(`remuneracion = $${params.length}`);
+      }
     }
     if (duracion) {
       params.push(duracion);
@@ -145,42 +216,57 @@ const obtenerOfertaPorId = async (req, res) => {
   }
 };
 
-// Actualizar una oferta
+// Actualizar una oferta (RS2.2 - P-05 / CP-RS2.2-01, CP-RS2.2-02, CP-RS2.2-03)
 const actualizarOferta = async (req, res) => {
   const { id } = req.params;
-  const { titulo, descripcion, requisitos, fecha_cierre, competencias } = req.body;
+  const { empresa_id, titulo, descripcion, requisitos, fecha_cierre, competencias, localidad, modalidad, remuneracion, duracion } = req.body;
 
   try {
-    // Verificar si la oferta existe y si aún no ha cerrado
-    const checkResult = await pool.query('SELECT fecha_cierre FROM ofertas WHERE id = $1', [id]);
+    // 1. Verificar si la oferta existe
+    const checkResult = await pool.query('SELECT empresa_id, fecha_cierre FROM ofertas WHERE id = $1', [id]);
     
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: 'Oferta no encontrada' });
     }
 
-    const fechaCierre = new Date(checkResult.rows[0].fecha_cierre);
+    const ofertaExistente = checkResult.rows[0];
+
+    // 2. Control de acceso (CP-RS2.2-03): Verificar que la empresa que edita sea la dueña de la oferta
+    if (!empresa_id || Number(ofertaExistente.empresa_id) !== Number(empresa_id)) {
+      return res.status(403).json({ error: 'Acceso no autorizado: No tienes permiso para editar ofertas de otra empresa.' });
+    }
+
+    // 3. Verificar si aún no ha cerrado
+    const fechaCierre = new Date(ofertaExistente.fecha_cierre);
     const ahora = new Date();
 
     if (ahora > fechaCierre) {
       return res.status(400).json({ error: 'No se puede modificar una oferta después de su fecha de cierre' });
     }
 
-    // Actualizar datos básicos
+    // 4. Validar campos obligatorios y rangos (CP-RS2.2-02)
+    const errores = validarDatosOferta({ titulo, descripcion, requisitos, fecha_cierre, localidad, modalidad, remuneracion, duracion, competencias });
+    if (errores.length > 0) {
+      return res.status(400).json({ error: errores.join(' '), errores });
+    }
+
+    // 5. Actualizar datos completos
     await pool.query(
-      'UPDATE ofertas SET titulo = $1, descripcion = $2, requisitos = $3, fecha_cierre = $4 WHERE id = $5',
-      [titulo, descripcion, requisitos, fecha_cierre, id]
+      `UPDATE ofertas 
+       SET titulo = $1, descripcion = $2, requisitos = $3, fecha_cierre = $4,
+           localidad = $5, modalidad = $6, remuneracion = $7, duracion = $8
+       WHERE id = $9`,
+      [titulo.trim(), descripcion.trim(), requisitos.trim(), fecha_cierre, localidad.trim(), modalidad.trim(), String(remuneracion).trim(), String(duracion).trim(), id]
     );
 
-    // Actualizar competencias (eliminar y volver a insertar)
+    // 6. Actualizar competencias (eliminar y volver a insertar)
     await pool.query('DELETE FROM oferta_competencia WHERE oferta_id = $1', [id]);
     
-    if (competencias && competencias.length > 0) {
-      const insertCompetenciasQuery = `
-        INSERT INTO oferta_competencia (oferta_id, competencia_id)
-        SELECT $1, unnest($2::int[])
-      `;
-      await pool.query(insertCompetenciasQuery, [id, competencias]);
-    }
+    const insertCompetenciasQuery = `
+      INSERT INTO oferta_competencia (oferta_id, competencia_id)
+      SELECT $1, unnest($2::int[])
+    `;
+    await pool.query(insertCompetenciasQuery, [id, competencias]);
 
     res.json({ mensaje: 'Oferta actualizada exitosamente' });
   } catch (err) {

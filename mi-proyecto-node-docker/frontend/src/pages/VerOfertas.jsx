@@ -241,7 +241,8 @@ export default function VerOfertas() {
               </label>
               <select name="remuneracion" value={filtrosRS3.remuneracion} onChange={handleFiltroRS3Change} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', backgroundColor: '#f8fafc', color: '#334155', fontWeight: '500' }}>
                 <option value="">Todas</option>
-                <option value="Pagada">Pagada</option>
+                <option value="Pagada">Pagada (Cualquier monto)</option>
+                <option value="mayor_300k">Mayor a $300.000</option>
                 <option value="No pagada">No pagada</option>
               </select>
             </div>
