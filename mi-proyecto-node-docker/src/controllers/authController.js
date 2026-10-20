@@ -38,7 +38,6 @@ const loginUsuario = async (req, res) => {
   const { correo, contrasena } = req.body;
 
   try {
-    // Primero obtenemos el usuario y su rol
     const userResult = await pool.query(
       'SELECT id, correo, rol FROM usuarios WHERE correo = $1 AND contrasena_hash = $2',
       [correo, contrasena]
@@ -58,8 +57,9 @@ const loginUsuario = async (req, res) => {
       );
       profileInfo = empresaResult.rows[0];
     } else {
+
       const estudianteResult = await pool.query(
-        'SELECT id, nombres, perfil_configurado FROM estudiantes WHERE usuario_id = $1',
+        'SELECT id, nombres, apellidos, perfil_configurado FROM estudiantes WHERE usuario_id = $1',
         [usuario.id]
       );
       profileInfo = estudianteResult.rows[0];
@@ -68,9 +68,11 @@ const loginUsuario = async (req, res) => {
     res.json({
       mensaje: 'Login exitoso',
       usuario: {
+        id: profileInfo.id,
         usuario_id: usuario.id,
+        correo: usuario.correo,
         rol: usuario.rol,
-        ...profileInfo
+        ...profileInfo 
       }
     });
 

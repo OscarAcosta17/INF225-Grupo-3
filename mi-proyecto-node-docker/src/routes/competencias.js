@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { obtenerCompetencias, guardarCompetenciasEstudiante, obtenerCompetenciasDeEstudiante } = require('../controllers/competenciaController');
+const { obtenerCompetencias, 
+  guardarCompetenciasEstudiante, 
+  obtenerCompetenciasDeEstudiante,
+  obtenerPerfilEstudiante,
+  actualizarPerfilEstudiante} = require('../controllers/competenciaController');
 
 // Cuando alguien haga un GET a esta ruta, se llama al controlador
 router.get('/', obtenerCompetencias);
@@ -9,5 +13,9 @@ router.get('/', obtenerCompetencias);
 router.post('/guardar', guardarCompetenciasEstudiante);
 
 router.get('/estudiante/:id', obtenerCompetenciasDeEstudiante);
+
+router.get('/perfil/:id', obtenerPerfilEstudiante);
+
+router.put('/perfil/:id', actualizarPerfilEstudiante);
 
 module.exports = router;

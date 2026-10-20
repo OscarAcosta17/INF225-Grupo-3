@@ -6,9 +6,14 @@ const IconSearch = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="n
 const IconLogOut = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
 const IconCheckCircle = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
 const IconClock = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+const IconUser = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
 
 export default function Perfil() {
   const navigate = useNavigate();
+  
+  // Estado para los datos personales y de contacto
+  const [datosPerfil, setDatosPerfil] = useState(null);
+  
   const [misCompetencias, setMisCompetencias] = useState(() => {
     const saved = sessionStorage.getItem('perfil_competencias');
     return saved ? JSON.parse(saved) : [];
@@ -28,6 +33,14 @@ export default function Perfil() {
 
     const cargarDatos = async () => {
       try {
+        // Cargar datos de contacto
+        const resPerfil = await fetch(`/api/competencias/perfil/${usuarioLocal.id}`);
+        if (resPerfil.ok) {
+          const dataPerfil = await resPerfil.json();
+          setDatosPerfil(dataPerfil);
+        }
+
+        // Cargar competencias
         const resComp = await fetch(`/api/competencias/estudiante/${usuarioLocal.id}`);
         if (resComp.ok) {
           const data = await resComp.json();
@@ -38,6 +51,7 @@ export default function Perfil() {
             navigate('/login');
         }
 
+        // Cargar postulaciones
         const resPost = await fetch(`/api/postulaciones/estudiante/${usuarioLocal.id}`);
         if (resPost.ok) {
           const data = await resPost.json();
@@ -83,7 +97,20 @@ export default function Perfil() {
         .perfil-left {
           flex: 0 0 320px; 
           display: flex; flex-direction: column;
+          gap: 20px;
+          overflow-y: auto; /* Permite hacer scroll en esta columna */
+          min-height: 0; /* Necesario para que el contenedor no colapse */
+          padding-right: 6px; /* Espacio para la barra */
         }
+        
+        /* Evita que las tarjetas internas se aplasten */
+        .perfil-left > div {
+          flex-shrink: 0;
+        }
+
+        /* Diseño bonito para la barra de scroll */
+        .perfil-left::-webkit-scrollbar { width: 6px; }
+        .perfil-left::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 10px; }
         
         .perfil-right {
           flex: 1; 
@@ -96,32 +123,13 @@ export default function Perfil() {
         .header-actions { display: flex; gap: 12px; }
         .header-title-box { display: flex; alignItems: center; gap: 20px; }
         
-        /* Responsive adjustments */
         @media (max-width: 900px) {
-          .perfil-app {
-            height: auto;
-            min-height: 100vh;
-            overflow-y: auto;
-          }
-          .perfil-body {
-            flex-direction: column;
-            overflow: visible;
-            padding: 20px;
-            gap: 20px;
-          }
-          .perfil-left {
-            flex: none;
-            width: 100%;
-          }
-          .perfil-right {
-            overflow: visible;
-          }
-          .history-scroll {
-            overflow-y: visible !important;
-          }
-          .header-actions {
-            display: none; /* or redesign into a hamburger menu, we hide for brevity if it's too cramped */
-          }
+          .perfil-app { height: auto; min-height: 100vh; overflow-y: auto; }
+          .perfil-body { flex-direction: column; overflow: visible; padding: 20px; gap: 20px; }
+          .perfil-left { flex: none; width: 100%; }
+          .perfil-right { overflow: visible; }
+          .history-scroll { overflow-y: visible !important; }
+          .header-actions { display: none; }
         }
       `}</style>
       <div className="perfil-app">
@@ -130,11 +138,13 @@ export default function Perfil() {
         <div style={{ flexShrink: 0, minHeight: '90px', backgroundColor: 'white', borderBottom: '1px solid #e2e8f0', padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
           <div className="header-title-box">
             <div style={{ width: '48px', height: '48px', backgroundColor: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.2rem', fontWeight: 'bold', boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)' }}>
-              {usuarioLocal?.nombres?.[0]}
+              {datosPerfil?.nombres?.[0] || usuarioLocal?.nombres?.[0] || 'U'}
             </div>
             <div>
-              <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.4rem', fontWeight: '700' }}>{usuarioLocal?.nombres} {usuarioLocal?.apellidos}</h2>
-              <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b', fontWeight: '500' }}>{usuarioLocal?.correo} • Estudiante</p>
+              <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.4rem', fontWeight: '700' }}>
+                {datosPerfil ? `${datosPerfil.nombres} ${datosPerfil.apellidos}` : `${usuarioLocal?.nombres || ''}`}
+              </h2>
+              <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b', fontWeight: '500' }}>{datosPerfil?.correo || usuarioLocal?.correo} • Estudiante</p>
             </div>
           </div>
           
@@ -169,10 +179,50 @@ export default function Perfil() {
         {/* Cuerpo principal */}
         <div className="perfil-body">
           
-          {/* Columna Izquierda: Competencias Técnicas (Ancho Fijo en Desktop) */}
+          {/* Columna Izquierda: Información de Contacto y Competencias */}
           <div className="perfil-left">
+            
+            {/* Tarjeta de Información Personal */}
             <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-              <div style={{ backgroundColor: '#f8fafc', padding: '24px', borderBottom: '1px solid #e2e8f0' }}>
+              <div style={{ backgroundColor: '#f8fafc', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
+                <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '700' }}>
+                  <span style={{ color: '#10b981' }}><IconUser /></span> Acerca de mí
+                </h3>
+              </div>
+              <div style={{ padding: '24px' }}>
+                {datosPerfil?.descripcion && (
+                  <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: '1.5', marginBottom: '20px' }}>
+                    {datosPerfil.descripcion}
+                  </p>
+                )}
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem' }}>
+                  {datosPerfil?.telefono && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Teléfono:</span>
+                      <span style={{ color: '#0f172a', fontWeight: '600' }}>{datosPerfil.telefono}</span>
+                    </div>
+                  )}
+                  {datosPerfil?.enlace_cv && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Currículum:</span>
+                      <a href={`http://localhost:4000${datosPerfil.enlace_cv}`} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontWeight: '600', textDecoration: 'none', backgroundColor: '#eff6ff', padding: '4px 10px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                        Ver CV
+                      </a>
+                    </div>
+                  )}
+                  {(!datosPerfil?.telefono && !datosPerfil?.enlace_cv && !datosPerfil?.descripcion) && (
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
+                      No has agregado información de contacto o descripción.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Tarjeta de Competencias */}
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+              <div style={{ backgroundColor: '#f8fafc', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
                 <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '700' }}>
                   <span style={{ color: '#3b82f6' }}><IconCheckCircle /></span> Competencias
                 </h3>

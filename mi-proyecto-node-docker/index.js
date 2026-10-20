@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path'); // <-- Asegúrate de importar path
 const pool = require('./db'); 
 const app = express();
 const port = 3000;
@@ -9,13 +10,16 @@ const authRoutes = require('./src/routes/auth');
 const postulacionesRoutes = require('./src/routes/postulaciones');
 const ofertasRoutes = require('./src/routes/ofertas');
 
-//(configuraciones generales)
+// (configuraciones generales)
 app.use(express.json());
 app.use(express.static('public')); 
 
+// EXPONER LA CARPETA DE UPLOADS PÚBLICAMENTE PARA LOS PDFs
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // 3. Definición de las apis
 app.use('/api/competencias', competenciasRoutes);
-app.use('/api/auth', authRoutes); //LOGIN/REGISTRO
+app.use('/api/auth', authRoutes); // LOGIN/REGISTRO
 app.use('/api/postulaciones', postulacionesRoutes);
 app.use('/api/ofertas', ofertasRoutes);
 

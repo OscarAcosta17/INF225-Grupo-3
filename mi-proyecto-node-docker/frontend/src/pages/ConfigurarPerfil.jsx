@@ -3,18 +3,31 @@ import { useNavigate } from 'react-router-dom';
 
 const IconUserCheck = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>;
 const IconSave = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>;
+const IconLogout = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
+
 
 export default function ConfigurarPerfil() {
   const [competencias, setCompetencias] = useState([]);
   const [seleccionadas, setSeleccionadas] = useState([]);
+  const [perfilInfo, setPerfilInfo] = useState({
+    nombres: '',
+    apellidos: '',
+    correo: '',
+    telefono: '',
+    descripcion: '',
+    enlace_cv: ''
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const handleLogout = () => {
+    localStorage.removeItem('usuario');
+    navigate('/login');
+  };
   
   const usuarioLocal = JSON.parse(localStorage.getItem('usuario'));
 
   useEffect(() => {
-    // Si el usuario guardado no tiene ID o es de una sesión antigua (ghost user)
     if (!usuarioLocal || !usuarioLocal.id) {
       localStorage.removeItem('usuario');
       navigate('/login');
@@ -23,6 +36,19 @@ export default function ConfigurarPerfil() {
 
     const cargarDatos = async () => {
       try {
+        const resPerfil = await fetch(`/api/competencias/perfil/${usuarioLocal.id}`);
+        if (resPerfil.ok) {
+          const dataPerfil = await resPerfil.json();
+          setPerfilInfo({
+            nombres: dataPerfil.nombres || '',
+            apellidos: dataPerfil.apellidos || '',
+            correo: dataPerfil.correo || '',
+            telefono: dataPerfil.telefono || '',
+            descripcion: dataPerfil.descripcion || '',
+            cv_file: null
+          });
+        }
+
         const resComp = await fetch('/api/competencias');
         const dataComp = await resComp.json();
         setCompetencias(dataComp);
@@ -32,7 +58,6 @@ export default function ConfigurarPerfil() {
           const dataMisComp = await resMisComp.json();
           setSeleccionadas(dataMisComp.map(c => c.id));
         } else if (resMisComp.status === 404 || resMisComp.status === 500) {
-          // Si el backend da error (ej: usuario borrado de la bd), forzar relogin
           localStorage.removeItem('usuario');
           navigate('/login');
         }
@@ -42,6 +67,10 @@ export default function ConfigurarPerfil() {
     };
     cargarDatos();
   }, [navigate]);
+
+  const handleInputChange = (e) => {
+    setPerfilInfo({ ...perfilInfo, [e.target.name]: e.target.value });
+  };
 
   const handleCheckboxChange = (id) => {
     setError('');
@@ -61,9 +90,29 @@ export default function ConfigurarPerfil() {
       return;
     }
 
+    if (perfilInfo.telefono) {
+      const telefonoRegex = /^\+?[0-9\s\-]{8,15}$/;
+      if (!telefonoRegex.test(perfilInfo.telefono)) {
+        setError('Por favor, ingresa un número de teléfono válido (ej: +56 9 1234 5678).');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const response = await fetch('/api/competencias/guardar', {
+      const formData = new FormData();
+      formData.append('telefono', perfilInfo.telefono);
+      formData.append('descripcion', perfilInfo.descripcion);
+      if (perfilInfo.cv_file) {
+        formData.append('cv_file', perfilInfo.cv_file);
+      }
+
+      const resPerfil = await fetch(`/api/competencias/perfil/${usuarioLocal.id}`, {
+        method: 'PUT',
+        body: formData 
+      });
+
+      const resComp = await fetch('/api/competencias/guardar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -72,15 +121,13 @@ export default function ConfigurarPerfil() {
         })
       });
 
-      if (response.ok) {
+      if (resPerfil.ok && resComp.ok) {
         usuarioLocal.perfil_configurado = true;
         localStorage.setItem('usuario', JSON.stringify(usuarioLocal));
         navigate('/perfil'); 
       } else {
-        const data = await response.json();
-        setError(data.error || 'Ocurrió un error al guardar. Tu sesión puede haber expirado.');
-        if (response.status === 500) {
-          // Fallback por si la DB fue reiniciada y el ID ya no existe
+        setError('Ocurrió un error al guardar. Tu sesión puede haber expirado.');
+        if (resComp.status === 500 || resPerfil.status === 500) {
           localStorage.removeItem('usuario');
           setTimeout(() => navigate('/login'), 2000);
         }
@@ -92,32 +139,118 @@ export default function ConfigurarPerfil() {
     }
   };
 
-  // Agrupar competencias por categoría para renderizarlas de forma bonita
   const competenciasPorCategoria = competencias.reduce((acc, comp) => {
     if (!acc[comp.categoria]) acc[comp.categoria] = [];
     acc[comp.categoria].push(comp);
     return acc;
   }, {});
 
+  const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px', fontSize: '0.95rem' };
+  const labelStyle = { color: '#475569', fontSize: '0.9rem', fontWeight: '600' };
+
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '0 20px', fontFamily: 'sans-serif' }}>
       <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
         
-        <div style={{ backgroundColor: '#f8fafc', padding: '30px 40px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ backgroundColor: '#e0f2fe', padding: '16px', borderRadius: '50%', color: '#0284c7' }}>
-            <IconUserCheck />
+        <div style={{ backgroundColor: '#f8fafc', padding: '30px 40px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div style={{ backgroundColor: '#e0f2fe', padding: '16px', borderRadius: '50%', color: '#0284c7' }}>
+              <IconUserCheck />
+            </div>
+            <div>
+              <h2 style={{ margin: '0 0 5px 0', color: '#0f172a', fontSize: '1.8rem' }}>
+                {usuarioLocal?.perfil_configurado ? 'Modifica tu Perfil' : 'Configura tu Perfil'}
+              </h2>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '1rem' }}>
+                Completa tu información de contacto y competencias técnicas.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 style={{ margin: '0 0 5px 0', color: '#0f172a', fontSize: '1.8rem' }}>
-              {usuarioLocal?.perfil_configurado ? 'Modifica tu Perfil' : 'Configura tu Perfil'}
-            </h2>
-            <p style={{ margin: 0, color: '#64748b', fontSize: '1rem' }}>
-              Hola <strong>{usuarioLocal?.nombres}</strong>, selecciona las competencias técnicas y habilidades que manejas para recibir mejores recomendaciones.
-            </p>
-          </div>
+          
+          <button 
+            type="button" 
+            onClick={handleLogout}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '8px', 
+              padding: '10px 16px', backgroundColor: 'transparent', 
+              color: '#ef4444', border: '1px solid transparent', 
+              borderRadius: '8px', fontSize: '0.9rem', fontWeight: '600', 
+              cursor: 'pointer', transition: 'all 0.2s' 
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#fef2f2'; }}
+            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+          >
+            <IconLogout /> Salir
+          </button>
         </div>
         
         <form onSubmit={handleSubmit} style={{ padding: '40px' }}>
+          
+
+          <div style={{ marginBottom: '30px', backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '1.1rem' }}>Datos Institucionales</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div>
+                <label style={labelStyle}>Nombres</label>
+                <input style={{...inputStyle, backgroundColor: '#f1f5f9', color: '#64748b'}} type="text" value={usuarioLocal?.nombres || perfilInfo.nombres || ''} disabled />
+              </div>
+              <div>
+                <label style={labelStyle}>Apellidos</label>
+
+                <input style={{...inputStyle, backgroundColor: '#f1f5f9', color: '#64748b'}} type="text" value={usuarioLocal?.apellidos || perfilInfo.apellidos || ''} disabled />
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={labelStyle}>Correo Electrónico</label>
+                <input style={{...inputStyle, backgroundColor: '#f1f5f9', color: '#64748b'}} type="email" value={usuarioLocal?.correo || perfilInfo.correo || ''} disabled />
+              </div>
+            </div>
+          </div>
+
+
+          <div style={{ marginBottom: '40px' }}>
+            <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '1.1rem', borderBottom: '2px solid #f1f5f9', paddingBottom: '8px' }}>Información de Contacto</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div>
+                <label style={labelStyle}>Teléfono</label>
+                <input name="telefono" placeholder="+56 9 1234 5678" style={inputStyle} type="text" value={perfilInfo.telefono} onChange={handleInputChange} />
+              </div>
+              <div>
+                <label style={labelStyle}>Currículum (PDF)</label>
+                <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {perfilInfo.enlace_cv && (
+                    <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f1f5f9', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                      <span>📄 CV actual registrado</span>
+                      <a href={`http://localhost:4000${perfilInfo.enlace_cv}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600', textDecoration: 'none' }}>
+                        Ver PDF
+                      </a>
+                    </div>
+                  )}
+                  <input 
+                    name="cv_file" 
+                    type="file" 
+                    accept=".pdf" 
+                    style={{ width: '100%', padding: '7px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', backgroundColor: 'white' }} 
+                    onChange={(e) => setPerfilInfo({ ...perfilInfo, cv_file: e.target.files[0] })} 
+                  />
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Selecciona un archivo nuevo solo si deseas reemplazar el actual.</span>
+                </div>
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={labelStyle}>Breve descripción</label>
+                <textarea name="descripcion" placeholder="Cuéntanos un poco sobre ti..." style={{...inputStyle, minHeight: '80px', resize: 'vertical'}} value={perfilInfo.descripcion} onChange={handleInputChange} />
+              </div>
+            </div>
+          </div>
+
+          {/* SECCIÓN COMPETENCIAS */}
+          <div style={{ marginTop: '50px', marginBottom: '25px', borderTop: '1px solid #e2e8f0', paddingTop: '30px' }}>
+            <h3 style={{ margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.4rem', fontWeight: '700' }}>
+              Competencias Técnicas
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '0.95rem', margin: 0 }}>
+              Selecciona las herramientas, lenguajes y tecnologías en las que tienes experiencia.
+            </p>
+          </div>
           {Object.entries(competenciasPorCategoria).map(([categoria, comps]) => (
             <div key={categoria} style={{ marginBottom: '30px' }}>
               <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '1.1rem', borderBottom: '2px solid #f1f5f9', paddingBottom: '8px' }}>
