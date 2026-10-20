@@ -1,8 +1,15 @@
 const express = require('express');
-const path = require('path'); // <-- Asegúrate de importar path
+const path = require('path');
+const fs = require('fs');
 const pool = require('./db'); 
 const app = express();
 const port = 3000;
+
+const uploadDir = path.join(__dirname, 'uploads/cvs');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('Carpeta uploads/cvs creada automáticamente en el servidor.');
+}
 
 // rutas 
 const competenciasRoutes = require('./src/routes/competencias');

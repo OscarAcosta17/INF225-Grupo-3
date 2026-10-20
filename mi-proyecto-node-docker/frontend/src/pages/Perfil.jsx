@@ -98,17 +98,17 @@ export default function Perfil() {
           flex: 0 0 320px; 
           display: flex; flex-direction: column;
           gap: 20px;
-          overflow-y: auto; /* Permite hacer scroll en esta columna */
-          min-height: 0; /* Necesario para que el contenedor no colapse */
-          padding-right: 6px; /* Espacio para la barra */
+          overflow-y: auto; 
+          min-height: 0; 
+          padding-right: 6px; 
         }
         
-        /* Evita que las tarjetas internas se aplasten */
+       
         .perfil-left > div {
           flex-shrink: 0;
         }
 
-        /* Diseño bonito para la barra de scroll */
+        
         .perfil-left::-webkit-scrollbar { width: 6px; }
         .perfil-left::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 10px; }
         
