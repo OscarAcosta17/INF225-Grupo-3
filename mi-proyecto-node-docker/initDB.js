@@ -29,6 +29,15 @@ const createTables = async () => {
         perfil_configurado BOOLEAN DEFAULT FALSE
     );
 
+    DO $$ 
+    BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='estudiantes' AND column_name='telefono') THEN
+            ALTER TABLE estudiantes ADD COLUMN telefono VARCHAR(20);
+            ALTER TABLE estudiantes ADD COLUMN descripcion TEXT;
+            ALTER TABLE estudiantes ADD COLUMN enlace_cv VARCHAR(255);
+        END IF;
+    END $$;
+
     -- 2.1 Tabla para el perfil de la empresa
     CREATE TABLE IF NOT EXISTS empresas (
         id SERIAL PRIMARY KEY,
@@ -155,19 +164,31 @@ const createTables = async () => {
       ON CONFLICT (id) DO NOTHING;
 
       INSERT INTO ofertas (id, empresa_id, titulo, descripcion, requisitos, fecha_cierre, localidad, modalidad, remuneracion, duracion) VALUES
-      (1, 1, 'Desarrollador Frontend Junior', 'Desarrollo en React', 'Saber React', '2027-12-31', 'Santiago', 'Hibrido', 'Pagada', '3 meses'),
+      (1, 1, 'Desarrollador Frontend Junior', 'Desarrollo en React', 'Saber React', '2027-12-31', 'Santiago', 'Hibrido', '$350.000 mensuales', '3 meses'),
       (2, 1, 'Analista de Datos', 'Analisis con Python', 'Python, SQL', '2027-12-31', 'Valparaiso', 'Remoto', 'No pagada', '2 meses'),
-      (3, 1, 'Ingeniero Backend', 'Node.js y DB', 'Node, Express', '2027-12-31', 'Santiago', 'Presencial', 'Pagada', '6 meses'),
-      (4, 1, 'Cloud Engineer Trainee', 'AWS y contenedores', 'AWS, Docker', '2027-12-31', 'Santiago', 'Hibrido', 'Pagada', '6 meses'),
-      (5, 1, 'Desarrollador Fullstack', 'React y Node', 'Fullstack JS', '2027-12-31', 'Remoto', 'Remoto', 'Pagada', '3 meses'),
+      (3, 1, 'Ingeniero Backend', 'Node.js y DB', 'Node, Express', '2027-12-31', 'Santiago', 'Presencial', '$500.000 mensuales', '6 meses'),
+      (4, 1, 'Cloud Engineer Trainee', 'AWS y contenedores', 'AWS, Docker', '2027-12-31', 'Santiago', 'Hibrido', '$450.000 mensuales', '6 meses'),
+      (5, 1, 'Desarrollador Fullstack', 'React y Node', 'Fullstack JS', '2027-12-31', 'Remoto', 'Remoto', '$600.000 mensuales', '3 meses'),
       (6, 1, 'Data Engineer Trainee', 'Pipelines en Python', 'Python, AWS', '2027-12-31', 'Valparaiso', 'Presencial', 'No pagada', '2 meses'),
-      (7, 1, 'Backend Java', 'Spring Boot microservices', 'Java, Spring', '2027-12-31', 'Santiago', 'Hibrido', 'Pagada', '6 meses'),
-      (8, 1, 'Frontend Angular', 'SPA empresariales', 'Angular, TS', '2027-12-31', 'Remoto', 'Remoto', 'Pagada', '3 meses'),
-      (9, 1, 'DevOps Junior', 'Kubernetes cluster admin', 'Docker, K8s', '2027-12-31', 'Santiago', 'Presencial', 'Pagada', '6 meses'),
-      (10, 1, 'Desarrollador Go', 'Servicios de alta concurrencia', 'Go, SQL', '2027-12-31', 'Remoto', 'Remoto', 'Pagada', '3 meses'),
-      (11, 1, 'Scrum Master Trainee', 'Gestion de proyectos agiles', 'Liderazgo, Teamwork', '2027-12-31', 'Remoto', 'Remoto', 'Pagada', '3 meses'),
-      (12, 1, 'Desarrollador C#', 'Sistemas backend empresariales', 'C#, SQL', '2027-12-31', 'Santiago', 'Presencial', 'Pagada', '6 meses')
+      (7, 1, 'Backend Java', 'Spring Boot microservices', 'Java, Spring', '2027-12-31', 'Santiago', 'Hibrido', '$550.000 mensuales', '6 meses'),
+      (8, 1, 'Frontend Angular', 'SPA empresariales', 'Angular, TS', '2027-12-31', 'Remoto', 'Remoto', '$300.000 mensuales', '3 meses'),
+      (9, 1, 'DevOps Junior', 'Kubernetes cluster admin', 'Docker, K8s', '2027-12-31', 'Santiago', 'Presencial', '$480.000 mensuales', '6 meses'),
+      (10, 1, 'Desarrollador Go', 'Servicios de alta concurrencia', 'Go, SQL', '2027-12-31', 'Remoto', 'Remoto', '$650.000 mensuales', '3 meses'),
+      (11, 1, 'Scrum Master Trainee', 'Gestion de proyectos agiles', 'Liderazgo, Teamwork', '2027-12-31', 'Remoto', 'Remoto', '$250.000 mensuales', '3 meses'),
+      (12, 1, 'Desarrollador C#', 'Sistemas backend empresariales', 'C#, SQL', '2027-12-31', 'Santiago', 'Presencial', '$400.000 mensuales', '6 meses')
       ON CONFLICT (id) DO NOTHING;
+
+      -- Actualizar ofertas de prueba antiguas que tenian solo 'Pagada' sin monto para que sean compatibles con el filtro de montos
+      UPDATE ofertas SET remuneracion = '$350.000 mensuales' WHERE id = 1 AND remuneracion = 'Pagada';
+      UPDATE ofertas SET remuneracion = '$500.000 mensuales' WHERE id = 3 AND remuneracion = 'Pagada';
+      UPDATE ofertas SET remuneracion = '$450.000 mensuales' WHERE id = 4 AND remuneracion = 'Pagada';
+      UPDATE ofertas SET remuneracion = '$600.000 mensuales' WHERE id = 5 AND remuneracion = 'Pagada';
+      UPDATE ofertas SET remuneracion = '$550.000 mensuales' WHERE id = 7 AND remuneracion = 'Pagada';
+      UPDATE ofertas SET remuneracion = '$300.000 mensuales' WHERE id = 8 AND remuneracion = 'Pagada';
+      UPDATE ofertas SET remuneracion = '$480.000 mensuales' WHERE id = 9 AND remuneracion = 'Pagada';
+      UPDATE ofertas SET remuneracion = '$650.000 mensuales' WHERE id = 10 AND remuneracion = 'Pagada';
+      UPDATE ofertas SET remuneracion = '$250.000 mensuales' WHERE id = 11 AND remuneracion = 'Pagada';
+      UPDATE ofertas SET remuneracion = '$400.000 mensuales' WHERE id = 12 AND remuneracion = 'Pagada';
       
       INSERT INTO oferta_competencia (oferta_id, competencia_id) VALUES
       (1, 12), (1, 4), (1, 15), 

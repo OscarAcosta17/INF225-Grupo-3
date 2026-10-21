@@ -18,7 +18,7 @@ export default function VerOfertas() {
   const [misCompetenciasNombres, setMisCompetenciasNombres] = useState([]);
   const [misPostulacionesIds, setMisPostulacionesIds] = useState([]); // Nuevo estado para postulaciones
   const [filtrosCompetencias, setFiltrosCompetencias] = useState([]);
-  const [filtrosRS3, setFiltrosRS3] = useState({ localidad: '', modalidad: '', remuneracion: '', duracion: '' });
+  const [filtrosRS3, setFiltrosRS3] = useState({ localidad: '', modalidad: '', montoMin: 60000, duracionMeses: 0 });
   const [loading, setLoading] = useState(false);
   
   // Estado para modales
@@ -70,8 +70,13 @@ export default function VerOfertas() {
     if (competenciasIds.length > 0) url += `competencias_filtro=${competenciasIds.join(',')}&`;
     if (rs3.localidad) url += `localidad=${rs3.localidad}&`;
     if (rs3.modalidad) url += `modalidad=${rs3.modalidad}&`;
-    if (rs3.remuneracion) url += `remuneracion=${rs3.remuneracion}&`;
-    if (rs3.duracion) url += `duracion=${rs3.duracion}&`;
+    if (Number(rs3.montoMin) > 60000) {
+      url += `remuneracion=Pagada&monto_min=${rs3.montoMin}&`;
+    }
+    if (Number(rs3.duracionMeses) > 0) {
+      const m = Number(rs3.duracionMeses);
+      url += `duracion=${encodeURIComponent(m === 1 ? '1 mes' : `${m} meses`)}&`;
+    }
 
     fetch(url)
       .then(res => res.json())
@@ -84,7 +89,8 @@ export default function VerOfertas() {
   };
 
   const handleFiltroRS3Change = (e) => {
-    setFiltrosRS3(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFiltrosRS3(prev => ({ ...prev, [name]: value }));
   };
 
   const handlePostular = async (ofertaId, confirmarSinRequisitos = false) => {
@@ -180,7 +186,7 @@ export default function VerOfertas() {
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <button 
-              onClick={() => { setViewMode(null); setFiltrosCompetencias([]); setFiltrosRS3({localidad:'', modalidad:'', remuneracion:'', duracion:''}); }} 
+              onClick={() => { setViewMode(null); setFiltrosCompetencias([]); setFiltrosRS3({localidad:'', modalidad:'', montoMin:60000, duracionMeses:0}); }} 
               style={{ padding: '10px', backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', transition: 'all 0.2s' }}
               onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
               onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
@@ -236,27 +242,65 @@ export default function VerOfertas() {
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '6px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <IconMoney /> Remuneración
+              <label style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '6px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <IconClock /> Duración
+                </span>
+                <span style={{ fontSize: '0.78rem', color: Number(filtrosRS3.duracionMeses) > 0 ? '#2563eb' : '#64748b', fontWeight: '700' }}>
+                  {Number(filtrosRS3.duracionMeses) === 0 ? 'Flexible' : Number(filtrosRS3.duracionMeses) === 1 ? '1 mes' : `${filtrosRS3.duracionMeses} meses`}
+                </span>
               </label>
-              <select name="remuneracion" value={filtrosRS3.remuneracion} onChange={handleFiltroRS3Change} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', backgroundColor: '#f8fafc', color: '#334155', fontWeight: '500' }}>
-                <option value="">Todas</option>
-                <option value="Pagada">Pagada (Cualquier monto)</option>
-                <option value="mayor_300k">Mayor a $300.000</option>
-                <option value="No pagada">No pagada</option>
-              </select>
+              <div style={{ position: 'relative', height: '39px', padding: '0 6px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center' }}>
+                <div style={{ position: 'absolute', left: '16px', right: '16px', top: '50%', transform: 'translateY(-50%)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none', zIndex: 3 }}>
+                  {Array.from({ length: 13 }).map((_, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        width: '5px',
+                        height: '5px',
+                        borderRadius: '50%',
+                        backgroundColor: idx <= Number(filtrosRS3.duracionMeses) ? '#1d4ed8' : '#94a3b8',
+                        opacity: idx === Number(filtrosRS3.duracionMeses) ? 0 : 0.75,
+                        transition: 'all 0.15s'
+                      }}
+                    />
+                  ))}
+                </div>
+                <input
+                  type="range"
+                  name="duracionMeses"
+                  className="edge-slider"
+                  min="0"
+                  max="12"
+                  step="1"
+                  value={filtrosRS3.duracionMeses}
+                  onChange={handleFiltroRS3Change}
+                  style={{ background: `linear-gradient(to right, #93c5fd ${(Number(filtrosRS3.duracionMeses) / 12) * 100}%, #e2e8f0 ${(Number(filtrosRS3.duracionMeses) / 12) * 100}%)` }}
+                />
+              </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '6px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <IconClock /> Duración
+              <label style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '6px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <IconMoney /> Remuneración
+                </span>
+                <span style={{ fontSize: '0.78rem', color: Number(filtrosRS3.montoMin) > 60000 ? '#2563eb' : '#64748b', fontWeight: '700' }}>
+                  {Number(filtrosRS3.montoMin) > 60000 ? `Desde $${Number(filtrosRS3.montoMin).toLocaleString('es-CL')}` : 'Desde $60.000 (Todas)'}
+                </span>
               </label>
-              <select name="duracion" value={filtrosRS3.duracion} onChange={handleFiltroRS3Change} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', backgroundColor: '#f8fafc', color: '#334155', fontWeight: '500' }}>
-                <option value="">Cualquier duración</option>
-                <option value="1 mes">1 mes</option>
-                <option value="2 meses">2 meses</option>
-                <option value="3 meses">3 meses</option>
-                <option value="6 meses">6 meses</option>
-              </select>
+              <div style={{ height: '39px', padding: '0 6px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="range"
+                  name="montoMin"
+                  className="edge-slider"
+                  min="60000"
+                  max="1000000"
+                  step="10000"
+                  value={filtrosRS3.montoMin}
+                  onChange={handleFiltroRS3Change}
+                  style={{ background: `linear-gradient(to right, #93c5fd ${((Number(filtrosRS3.montoMin) - 60000) / 940000) * 100}%, #e2e8f0 ${((Number(filtrosRS3.montoMin) - 60000) / 940000) * 100}%)` }}
+                />
+              </div>
             </div>
           </div>
 
@@ -509,6 +553,58 @@ export default function VerOfertas() {
 
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .edge-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          height: 20px;
+          background: #e2e8f0;
+          border-radius: 999px;
+          outline: none;
+          margin: 0;
+          padding: 0 2px;
+          cursor: pointer;
+          position: relative;
+          z-index: 2;
+          box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+          transition: background 0.2s ease, box-shadow 0.2s ease;
+        }
+        .edge-slider:hover {
+          box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.12), 0 0 0 3px rgba(59, 130, 246, 0.08);
+        }
+        .edge-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #2563eb;
+          border: 3px solid #ffffff;
+          box-shadow: 0 2px 5px rgba(37, 99, 235, 0.4);
+          cursor: grab;
+          transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease, box-shadow 0.18s ease;
+        }
+        .edge-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          background: #1d4ed8;
+          box-shadow: 0 3px 8px rgba(37, 99, 235, 0.55);
+        }
+        .edge-slider::-webkit-slider-thumb:active {
+          cursor: grabbing;
+          transform: scale(0.98);
+          background: #1e40af;
+        }
+        .edge-slider::-moz-range-thumb {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #2563eb;
+          border: 3px solid #ffffff;
+          box-shadow: 0 2px 5px rgba(37, 99, 235, 0.4);
+          cursor: grab;
+          transition: transform 0.18s ease, background-color 0.15s ease;
+        }
 
         /* Custom Scrollbar for VerOfertas */
         ::-webkit-scrollbar {

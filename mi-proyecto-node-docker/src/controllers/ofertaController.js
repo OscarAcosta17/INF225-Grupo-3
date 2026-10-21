@@ -90,7 +90,7 @@ const crearOferta = async (req, res) => {
 
 // Obtener todas las ofertas
 const obtenerOfertas = async (req, res) => {
-  const { empresa_id, estudiante_id, competencias_filtro, localidad, modalidad, remuneracion, duracion } = req.query;
+  const { empresa_id, estudiante_id, competencias_filtro, localidad, modalidad, remuneracion, monto_min, duracion } = req.query;
   try {
     let query = `
       WITH oferta_data AS (
@@ -127,8 +127,14 @@ const obtenerOfertas = async (req, res) => {
         // CP-RS3.1-01: Filtro por monto mayor a $300.000
         whereClauses.push(`(NULLIF(regexp_replace(remuneracion, '[^0-9]', '', 'g'), '')::numeric > 300000)`);
       } else if (remuneracion === 'Pagada') {
-        // Compatible con 'Pagada' y con montos monetarios ingresados
-        whereClauses.push(`(remuneracion = 'Pagada' OR (NULLIF(regexp_replace(remuneracion, '[^0-9]', '', 'g'), '')::numeric > 0))`);
+        const minVal = monto_min ? Number(monto_min) : 0;
+        if (!isNaN(minVal) && minVal > 0) {
+          params.push(minVal);
+          whereClauses.push(`(NULLIF(regexp_replace(remuneracion, '[^0-9]', '', 'g'), '')::numeric >= $${params.length})`);
+        } else {
+          // Compatible con 'Pagada' y con montos monetarios ingresados > 0
+          whereClauses.push(`(remuneracion = 'Pagada' OR (NULLIF(regexp_replace(remuneracion, '[^0-9]', '', 'g'), '')::numeric > 0))`);
+        }
       } else if (remuneracion === 'No pagada') {
         // Compatible con 'No pagada' o $0
         whereClauses.push(`(remuneracion = 'No pagada' OR remuneracion ILIKE '%no pagada%' OR NULLIF(regexp_replace(remuneracion, '[^0-9]', '', 'g'), '')::numeric = 0)`);

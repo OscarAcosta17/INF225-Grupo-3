@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 const IconUserCheck = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>;
 const IconSave = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>;
-const IconLogout = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
+const IconUser = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
 
 
 export default function ConfigurarPerfil() {
@@ -20,10 +20,6 @@ export default function ConfigurarPerfil() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const handleLogout = () => {
-    localStorage.removeItem('usuario');
-    navigate('/login');
-  };
   
   const usuarioLocal = JSON.parse(localStorage.getItem('usuario'));
 
@@ -45,6 +41,7 @@ export default function ConfigurarPerfil() {
             correo: dataPerfil.correo || '',
             telefono: dataPerfil.telefono || '',
             descripcion: dataPerfil.descripcion || '',
+            enlace_cv: dataPerfil.enlace_cv || '',
             cv_file: null
           });
         }
@@ -169,18 +166,19 @@ export default function ConfigurarPerfil() {
           
           <button 
             type="button" 
-            onClick={handleLogout}
+            onClick={() => navigate('/perfil')}
             style={{ 
               display: 'flex', alignItems: 'center', gap: '8px', 
-              padding: '10px 16px', backgroundColor: 'transparent', 
-              color: '#ef4444', border: '1px solid transparent', 
-              borderRadius: '8px', fontSize: '0.9rem', fontWeight: '600', 
-              cursor: 'pointer', transition: 'all 0.2s' 
+              padding: '10px 16px', backgroundColor: 'white', 
+              color: '#475569', border: '1px solid #e2e8f0', 
+              borderRadius: '8px', fontSize: '0.9rem', fontWeight: '500', 
+              cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
             }}
-            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#fef2f2'; }}
-            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
+            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = '#475569'; }}
           >
-            <IconLogout /> Salir
+            <IconUser /> Volver al perfil
           </button>
         </div>
         
