@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const IconPlus = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
@@ -13,8 +13,12 @@ const IconBriefcase = () => <svg width="13" height="13" viewBox="0 0 24 24" fill
 
 export default function MisOfertas() {
   const [ofertas, setOfertas] = useState([]);
+  const [ofertaPostulantes, setOfertaPostulantes] = useState(null);
+  const [postulantes, setPostulantes] = useState([]);
+  const [cargandoPostulantes, setCargandoPostulantes] = useState(false);
+  const [errorPostulantes, setErrorPostulantes] = useState('');
   const navigate = useNavigate();
-  const usuario = JSON.parse(localStorage.getItem('usuario'));
+  const usuario = useMemo(() => JSON.parse(localStorage.getItem('usuario')), []);
 
   useEffect(() => {
     if (!usuario || usuario.rol !== 'empresa') {
@@ -31,6 +35,23 @@ export default function MisOfertas() {
   const handleLogout = () => {
     localStorage.removeItem('usuario');
     navigate('/login');
+  };
+
+  const verPostulantes = async (oferta) => {
+    setOfertaPostulantes(oferta);
+    setPostulantes([]);
+    setErrorPostulantes('');
+    setCargandoPostulantes(true);
+    try {
+      const response = await fetch(`/api/postulaciones/oferta/${oferta.id}/empresa/${usuario.id}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los postulantes');
+      setPostulantes(data);
+    } catch (error) {
+      setErrorPostulantes(error.message);
+    } finally {
+      setCargandoPostulantes(false);
+    }
   };
 
   return (
@@ -182,7 +203,13 @@ export default function MisOfertas() {
                   </div>
 
                   {/* Footer de acción (igual a VerOfertas) */}
-                  <div style={{ padding: '14px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ padding: '14px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button
+                      onClick={() => verPostulantes(o)}
+                      style={{ width: '100%', padding: '10px 16px', backgroundColor: 'white', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '8px', fontWeight: '600', fontSize: '0.88rem', cursor: 'pointer' }}
+                    >
+                      Ver postulantes
+                    </button>
                     {cerrada ? (
                       <button
                         disabled
@@ -207,6 +234,35 @@ export default function MisOfertas() {
           </div>
         )}
       </div>
+
+      {ofertaPostulantes && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <section style={{ width: '100%', maxWidth: '650px', maxHeight: '85vh', overflowY: 'auto', backgroundColor: 'white', borderRadius: '16px', padding: '26px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <h3 style={{ margin: 0, color: '#0f172a' }}>Postulantes</h3>
+                <p style={{ margin: '6px 0 0', color: '#64748b' }}>{ofertaPostulantes.titulo}</p>
+              </div>
+              <button onClick={() => setOfertaPostulantes(null)} aria-label="Cerrar" style={{ border: 0, background: 'transparent', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>×</button>
+            </div>
+            {cargandoPostulantes ? <p style={{ color: '#64748b' }}>Cargando postulantes...</p> : errorPostulantes ? <p role="alert" style={{ color: '#b91c1c' }}>{errorPostulantes}</p> : postulantes.length === 0 ? <p style={{ color: '#64748b' }}>Esta oferta aún no tiene postulantes.</p> : (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {postulantes.map((postulante) => (
+                  <article key={postulante.id} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#f8fafc' }}>
+                    <strong style={{ color: '#0f172a' }}>{[postulante.nombres, postulante.apellidos].filter(Boolean).join(' ') || 'Estudiante'}</strong>
+                    <p style={{ margin: '8px 0 0', color: '#475569' }}>Correo: <a href={`mailto:${postulante.correo_contacto}`}>{postulante.correo_contacto}</a></p>
+                    <p style={{ margin: '4px 0', color: '#475569' }}>Teléfono: <a href={`tel:${postulante.telefono}`}>{postulante.telefono}</a></p>
+                    {postulante.cv_path ? (
+                      <p style={{ margin: '4px 0 8px' }}><a href={`http://localhost:4000${postulante.cv_path}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600' }}>Abrir currículum (PDF)</a></p>
+                    ) : <p style={{ margin: '4px 0 8px', color: '#64748b' }}>Sin CV adjunto</p>}
+                    <small style={{ color: '#64748b' }}>Estado: {postulante.estado}</small>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
 
       <style>{`
         ::-webkit-scrollbar {

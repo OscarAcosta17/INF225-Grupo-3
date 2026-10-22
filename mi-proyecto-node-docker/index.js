@@ -21,7 +21,7 @@ const ofertasRoutes = require('./src/routes/ofertas');
 app.use(express.json());
 app.use(express.static('public')); 
 
-// EXPONER LA CARPETA DE UPLOADS PÚBLICAMENTE PARA LOS PDFs
+// CARPETA DE UPLOADS PÚBLICAMENTE PARA LOS PDFs
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 3. Definición de las apis

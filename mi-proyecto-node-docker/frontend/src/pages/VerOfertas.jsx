@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const IconLocation = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>;
@@ -11,6 +11,7 @@ const IconGlobe = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="no
 const IconUser = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
 
 export default function VerOfertas() {
+  const usuario = useMemo(() => JSON.parse(localStorage.getItem('usuario')), []);
   const [viewMode, setViewMode] = useState(null); 
   
   const [ofertas, setOfertas] = useState([]);
@@ -20,13 +21,17 @@ export default function VerOfertas() {
   const [filtrosCompetencias, setFiltrosCompetencias] = useState([]);
   const [filtrosRS3, setFiltrosRS3] = useState({ localidad: '', modalidad: '', montoMin: 60000, duracionMeses: 0 });
   const [loading, setLoading] = useState(false);
-  
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [datosPostulacion, setDatosPostulacion] = useState({ telefono: '', correo: usuario?.correo || '' });
+  const [perfilPostulacion, setPerfilPostulacion] = useState(null);
+  const [cvPostulacion, setCvPostulacion] = useState(null);
+  const [cargandoPerfilPostulacion, setCargandoPerfilPostulacion] = useState(true);
+  const [errorPerfilPostulacion, setErrorPerfilPostulacion] = useState('');
   // Estado para modales
   const [ofertaSeleccionada, setOfertaSeleccionada] = useState(null);
   const [matchSeleccionado, setMatchSeleccionado] = useState(null); // Modal de match
   
   const navigate = useNavigate();
-  const usuario = JSON.parse(localStorage.getItem('usuario'));
 
   useEffect(() => {
     if (!usuario) {
@@ -39,6 +44,16 @@ export default function VerOfertas() {
       .then(data => setTodasCompetencias(data));
       
     if (usuario.rol === 'estudiante' && usuario.id) {
+      fetch(`/api/competencias/perfil/${usuario.id}`)
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'No se pudo cargar tu perfil');
+          setPerfilPostulacion(data);
+          setDatosPostulacion({ telefono: data.telefono || '', correo: data.correo || usuario.correo || '' });
+        })
+        .catch((error) => setErrorPerfilPostulacion(error.message))
+        .finally(() => setCargandoPerfilPostulacion(false));
+
       fetch(`/api/competencias/estudiante/${usuario.id}`)
         .then(res => res.json())
         .then(data => {
@@ -95,16 +110,23 @@ export default function VerOfertas() {
 
   const handlePostular = async (ofertaId, confirmarSinRequisitos = false) => {
     try {
+      const formData = new FormData();
+      formData.append('estudiante_id', usuario.id);
+      formData.append('oferta_id', ofertaId);
+      formData.append('confirmarSinRequisitos', confirmarSinRequisitos);
+      formData.append('telefono', datosPostulacion.telefono);
+      formData.append('correo', datosPostulacion.correo);
+      if (cvPostulacion) formData.append('cv_file', cvPostulacion);
+
       const response = await fetch('/api/postulaciones/postular', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estudiante_id: usuario.id, oferta_id: ofertaId, confirmarSinRequisitos })
+        body: formData
       });
       const data = await response.json();
       if (response.ok) {
         if (data.requiereConfirmacion) {
           if (window.confirm(`${data.mensaje} ¿Deseas postular de todas formas?`)) {
-            handlePostular(ofertaId, true);
+            await handlePostular(ofertaId, true);
           }
         } else {
           alert('¡Postulación exitosa!');
@@ -112,7 +134,7 @@ export default function VerOfertas() {
           setOfertaSeleccionada(null); // Cerrar modal al postular
         }
       } else {
-        alert(data.error || 'Error al postular');
+        alert(data.detalle || data.error || 'Error al postular');
       }
     } catch (error) {
       alert(`Error al procesar la postulación: ${error.message}`);
@@ -483,16 +505,96 @@ export default function VerOfertas() {
                   );
                 }
                 return (
+ 
                   <button 
-                    onClick={() => handlePostular(ofertaSeleccionada.id)}
+                    onClick={() => setMostrarFormulario(true)}
                     style={{ padding: '12px 24px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }}
                     onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#1d4ed8'; }}
                     onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#2563eb'; }}
                   >
-                    Confirmar Postulación
+                     Continuar Postulación
                   </button>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* VENTANA EMERGENTE DE CONTACTO */}
+      {mostrarFormulario && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '20px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', width: '100%', maxWidth: '400px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', position: 'relative' }}>
+            
+            <h3 style={{ margin: '0 0 15px 0', color: '#0f172a', fontSize: '1.3rem' }}>Datos de Contacto</h3>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>Verifica tus datos para que la empresa pueda comunicarse contigo si eres preseleccionado.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: '600', color: '#475569' }}>Correo Electrónico</label>
+                <input 
+                  type="email" 
+                  required
+                  autoComplete="email"
+                  value={datosPostulacion.correo}
+                  onChange={(e) => setDatosPostulacion({...datosPostulacion, correo: e.target.value})}
+                  style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                  placeholder="ejemplo@usm.cl"
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: '600', color: '#475569' }}>Número de Teléfono</label>
+                <input 
+                  type="tel" 
+                  required
+                  autoComplete="tel"
+                  value={datosPostulacion.telefono}
+                  onChange={(e) => setDatosPostulacion({...datosPostulacion, telefono: e.target.value})}
+                  style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                  placeholder="+56 9 1234 5678"
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: '600', color: '#475569' }}>Currículum (PDF)</label>
+                {cargandoPerfilPostulacion ? (
+                  <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Cargando CV del perfil...</span>
+                ) : perfilPostulacion?.enlace_cv ? (
+                  <a href={`http://localhost:4000${perfilPostulacion.enlace_cv}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600' }}>
+                    Ver CV del perfil (se adjuntará a esta postulación)
+                  </a>
+                ) : (
+                  <>
+                    <span style={{ color: '#b91c1c', fontSize: '0.85rem' }}>No tienes un CV en tu perfil. Adjunta uno para continuar.</span>
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      onChange={(e) => setCvPostulacion(e.target.files?.[0] || null)}
+                    />
+                  </>
+                )}
+                {errorPerfilPostulacion && <span role="alert" style={{ color: '#b91c1c', fontSize: '0.85rem' }}>{errorPerfilPostulacion}</span>}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button 
+                onClick={() => setMostrarFormulario(false)}
+                style={{ padding: '10px 20px', backgroundColor: 'transparent', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => {
+                  setMostrarFormulario(false);
+                  handlePostular(ofertaSeleccionada.id); 
+                }}
+                disabled={cargandoPerfilPostulacion || Boolean(errorPerfilPostulacion) || !datosPostulacion.telefono.trim() || !datosPostulacion.correo.trim() || (!perfilPostulacion?.enlace_cv && !cvPostulacion)}
+                style={{ padding: '10px 20px', backgroundColor: (cargandoPerfilPostulacion || Boolean(errorPerfilPostulacion) || !datosPostulacion.telefono.trim() || !datosPostulacion.correo.trim() || (!perfilPostulacion?.enlace_cv && !cvPostulacion)) ? '#94a3b8' : '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: (cargandoPerfilPostulacion || Boolean(errorPerfilPostulacion) || !datosPostulacion.telefono.trim() || !datosPostulacion.correo.trim() || (!perfilPostulacion?.enlace_cv && !cvPostulacion)) ? 'not-allowed' : 'pointer' }}
+              >
+                Enviar Postulación
+              </button>
             </div>
           </div>
         </div>

@@ -99,8 +99,15 @@ const createTables = async () => {
         oferta_id INTEGER REFERENCES ofertas(id) ON DELETE CASCADE,
         fecha_postulacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         estado VARCHAR(50) DEFAULT 'Pendiente',
+        telefono VARCHAR(20),
+        correo_contacto VARCHAR(100),
+        cv_path VARCHAR(255),
         UNIQUE (estudiante_id, oferta_id)
     );
+
+    ALTER TABLE postulaciones ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);
+    ALTER TABLE postulaciones ADD COLUMN IF NOT EXISTS correo_contacto VARCHAR(100);
+    ALTER TABLE postulaciones ADD COLUMN IF NOT EXISTS cv_path VARCHAR(255);
   `;
 
   try {
