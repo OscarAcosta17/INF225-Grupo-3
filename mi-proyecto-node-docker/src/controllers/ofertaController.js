@@ -112,6 +112,12 @@ const obtenerOfertas = async (req, res) => {
     if (empresa_id) {
       params.push(empresa_id);
       whereClauses.push(`empresa_id = $${params.length}`);
+      if (req.query.solo_vigentes === 'true') {
+        whereClauses.push(`(fecha_cierre >= CURRENT_TIMESTAMP OR fecha_cierre::date >= CURRENT_DATE) AND (activa IS NULL OR activa = TRUE)`);
+      }
+    } else {
+      // D-01: Excluir del catálogo y de los filtros las ofertas cuya fecha límite ya pasó o que estén caducadas
+      whereClauses.push(`(fecha_cierre >= CURRENT_TIMESTAMP OR fecha_cierre::date >= CURRENT_DATE) AND (activa IS NULL OR activa = TRUE)`);
     }
 
     if (localidad) {

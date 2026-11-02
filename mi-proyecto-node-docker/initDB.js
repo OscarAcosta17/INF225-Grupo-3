@@ -83,6 +83,9 @@ const createTables = async () => {
             ALTER TABLE ofertas ADD COLUMN remuneracion VARCHAR(50);
             ALTER TABLE ofertas ADD COLUMN duracion VARCHAR(50);
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ofertas' AND column_name='activa') THEN
+            ALTER TABLE ofertas ADD COLUMN activa BOOLEAN DEFAULT TRUE;
+        END IF;
     END $$;
 
     -- 6. Tabla intermedia (Oferta requiere competencias)
@@ -182,8 +185,12 @@ const createTables = async () => {
       (9, 1, 'DevOps Junior', 'Kubernetes cluster admin', 'Docker, K8s', '2027-12-31', 'Santiago', 'Presencial', '$480.000 mensuales', '6 meses'),
       (10, 1, 'Desarrollador Go', 'Servicios de alta concurrencia', 'Go, SQL', '2027-12-31', 'Remoto', 'Remoto', '$650.000 mensuales', '3 meses'),
       (11, 1, 'Scrum Master Trainee', 'Gestion de proyectos agiles', 'Liderazgo, Teamwork', '2027-12-31', 'Remoto', 'Remoto', '$250.000 mensuales', '3 meses'),
-      (12, 1, 'Desarrollador C#', 'Sistemas backend empresariales', 'C#, SQL', '2027-12-31', 'Santiago', 'Presencial', '$400.000 mensuales', '6 meses')
+      (12, 1, 'Desarrollador C#', 'Sistemas backend empresariales', 'C#, SQL', '2027-12-31', 'Santiago', 'Presencial', '$400.000 mensuales', '6 meses'),
+      (13, 1, 'Oferta Vencida de Prueba (D-01/D-03)', 'Oferta con fecha límite ya expirada para verificar exclusión y bloqueo de postulación.', 'C++, SQL', '2024-01-01', 'Santiago', 'Presencial', '$300.000 mensuales', '3 meses'),
+      (14, 1, 'Oferta Desactivada de Prueba (D-01/D-03)', 'Oferta con activa=false para verificar exclusión del catálogo y filtros.', 'Python', '2027-12-31', 'Remoto', 'Remoto', '$400.000 mensuales', '3 meses')
       ON CONFLICT (id) DO NOTHING;
+
+      UPDATE ofertas SET activa = FALSE WHERE id = 14;
 
       -- Actualizar ofertas de prueba antiguas que tenian solo 'Pagada' sin monto para que sean compatibles con el filtro de montos
       UPDATE ofertas SET remuneracion = '$350.000 mensuales' WHERE id = 1 AND remuneracion = 'Pagada';
@@ -209,7 +216,9 @@ const createTables = async () => {
       (9, 21), (9, 22),
       (10, 6), (10, 8),
       (11, 24), (11, 25), (11, 26),
-      (12, 7), (12, 8)
+      (12, 7), (12, 8),
+      (13, 1), (13, 8),
+      (14, 2)
       ON CONFLICT DO NOTHING;
       
       INSERT INTO estudiante_competencia (estudiante_id, competencia_id) VALUES

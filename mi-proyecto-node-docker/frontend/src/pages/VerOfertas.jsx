@@ -103,6 +103,32 @@ export default function VerOfertas() {
     setFiltrosCompetencias(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
   };
 
+
+  const esOfertaVencida = (fechaCierre) => {
+    if (!fechaCierre) return false;
+    const fecha = new Date(fechaCierre);
+    fecha.setHours(23, 59, 59, 999);
+    return fecha < new Date();
+  };
+
+  const esOfertaNoVigente = (oferta) => {
+    if (!oferta) return false;
+    return esOfertaVencida(oferta.fecha_cierre) || oferta.activa === false;
+  };
+
+  const hayFiltrosActivos = Boolean(
+    filtrosRS3.localidad ||
+    filtrosRS3.modalidad ||
+    Number(filtrosRS3.duracionMeses) > 0 ||
+    Number(filtrosRS3.montoMin) > 60000 ||
+    filtrosCompetencias.length > 0
+  );
+
+  const handleLimpiarFiltros = () => {
+    setFiltrosRS3({ localidad: '', modalidad: '', montoMin: 60000, duracionMeses: 0 });
+    setFiltrosCompetencias([]);
+  };
+
   const handleFiltroRS3Change = (e) => {
     const { name, value } = e.target;
     setFiltrosRS3(prev => ({ ...prev, [name]: value }));
@@ -239,7 +265,29 @@ export default function VerOfertas() {
 
         {/* Panel de Filtros - Más limpio */}
         <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+            <span style={{ fontSize: '0.95rem', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+              Filtros de búsqueda
+            </span>
+            {hayFiltrosActivos && (
+              <button
+                onClick={handleLimpiarFiltros}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 14px', borderRadius: '8px',
+                  backgroundColor: '#f1f5f9', color: '#475569',
+                  border: '1px solid #cbd5e1', fontSize: '0.82rem',
+                  fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#fee2e2'; e.currentTarget.style.color = '#b91c1c'; e.currentTarget.style.borderColor = '#fca5a5'; }}
+                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Limpiar filtros
+              </button>
+            )}
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <label style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '6px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -372,6 +420,7 @@ export default function VerOfertas() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '24px' }}>
             {ofertas.map(o => {
               const yaPostulo = misPostulacionesIds.includes(o.id);
+              const noVigente = esOfertaNoVigente(o);
               return (
               <div key={o.id} style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', transition: 'box-shadow 0.2s, transform 0.2s', ':hover': { boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', transform: 'translateY(-4px)' } }}>
                 
@@ -380,6 +429,12 @@ export default function VerOfertas() {
                     <div style={{ position: 'absolute', top: '24px', right: '24px', backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                       Postulada
+                    </div>
+                  )}
+                  {noVigente && (
+                    <div style={{ position: 'absolute', top: '24px', right: yaPostulo ? '115px' : '24px', backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      No vigente
                     </div>
                   )}
                   {o.coincidencia !== undefined && viewMode === 'personalizadas' && (
@@ -419,11 +474,11 @@ export default function VerOfertas() {
                 <div style={{ padding: '16px 24px', backgroundColor: yaPostulo ? '#f0fdf4' : '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
                   <button 
                     onClick={() => setOfertaSeleccionada(o)}
-                    style={{ width: '100%', padding: '10px 20px', backgroundColor: yaPostulo ? '#166534' : '#0f172a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }}
-                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = yaPostulo ? '#14532d' : '#1e293b'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = yaPostulo ? '#166534' : '#0f172a'; }}
+                    style={{ width: '100%', padding: '10px 20px', backgroundColor: noVigente ? '#64748b' : yaPostulo ? '#166534' : '#0f172a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }}
+                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = noVigente ? '#475569' : yaPostulo ? '#14532d' : '#1e293b'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = noVigente ? '#64748b' : yaPostulo ? '#166534' : '#0f172a'; }}
                   >
-                    {yaPostulo ? 'Ya Postulaste (Ver Detalles)' : 'Ver Detalles y Postular'}
+                    {noVigente ? 'Oferta Cerrada (Ver Detalles)' : yaPostulo ? 'Ya Postulaste (Ver Detalles)' : 'Ver Detalles y Postular'}
                   </button>
                 </div>
               </div>
@@ -451,6 +506,13 @@ export default function VerOfertas() {
               </div>
               
               <h2 style={{ margin: '0 0 20px 0', color: '#0f172a', fontSize: '1.8rem' }}>{ofertaSeleccionada.titulo}</h2>
+              
+              {esOfertaNoVigente(ofertaSeleccionada) && (
+                <div style={{ padding: '12px 16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', marginBottom: '20px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span><strong>Oferta no vigente:</strong> Esta oferta ha alcanzado su fecha límite o ha sido caducada. Ya no admite postulaciones.</span>
+                </div>
+              )}
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '30px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '0.9rem' }}><IconLocation /> <strong>Localidad:</strong> {ofertaSeleccionada.localidad}</div>
@@ -493,6 +555,20 @@ export default function VerOfertas() {
               </button>
               {(() => {
                 const yaPostuloModal = misPostulacionesIds.includes(ofertaSeleccionada.id);
+                const noVigenteModal = esOfertaNoVigente(ofertaSeleccionada);
+
+                if (noVigenteModal) {
+                  return (
+                    <button 
+                      disabled
+                      style={{ padding: '12px 24px', backgroundColor: '#f1f5f9', color: '#94a3b8', border: '1px solid #cbd5e1', borderRadius: '8px', fontWeight: '700', cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                      Oferta Vencida (Postulación Deshabilitada)
+                    </button>
+                  );
+                }
+
                 if (yaPostuloModal) {
                   return (
                     <button 
@@ -505,7 +581,6 @@ export default function VerOfertas() {
                   );
                 }
                 return (
- 
                   <button 
                     onClick={() => setMostrarFormulario(true)}
                     style={{ padding: '12px 24px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }}
