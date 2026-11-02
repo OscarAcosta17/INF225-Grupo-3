@@ -16,6 +16,7 @@ const competenciasRoutes = require('./src/routes/competencias');
 const authRoutes = require('./src/routes/auth'); 
 const postulacionesRoutes = require('./src/routes/postulaciones');
 const ofertasRoutes = require('./src/routes/ofertas');
+const { iniciarServicioCaducidad } = require('./src/services/caducidadService');
 
 // (configuraciones generales)
 app.use(express.json());
@@ -30,13 +31,11 @@ app.use('/api/auth', authRoutes); // LOGIN/REGISTRO
 app.use('/api/postulaciones', postulacionesRoutes);
 app.use('/api/ofertas', ofertasRoutes);
 
-
 app.get('/', (req, res) => {
   res.send('¡Bienvenido! Este es el levantamiento de proyecto del grupo 5, procederemos a trabajar con el sistema de practicas del DI.');
 });
 
-
-
 app.listen(port, () => {
   console.log(`App corriendo en http://localhost:${port}`);
+  iniciarServicioCaducidad();
 });
