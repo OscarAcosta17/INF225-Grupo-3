@@ -30,12 +30,24 @@ export default function PublicarOferta() {
   const [todasCompetencias, setTodasCompetencias] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const esEmpresaValida = usuario && usuario.rol === 'empresa';
+
+  const [estadoAcceso, setEstadoAcceso] = useState(() => {
+    if (!esEmpresaValida) return 'denegado';
+    return id ? 'verificando' : 'autorizado';
+  });
+
+  const [mensajeErrorAcceso, setMensajeErrorAcceso] = useState(() => {
+    if (!usuario) return 'Debes iniciar sesión como empresa para acceder a este formulario.';
+    if (usuario.rol !== 'empresa') return 'Acceso No Autorizado (403): Solo las cuentas de empresa tienen permisos para publicar o editar ofertas.';
+    return '';
+  });
 
   useEffect(() => {
-    // Control de acceso general (CP-RS2.2-03)
+    // 1. Control de rol general
     if (!usuario || usuario.rol !== 'empresa') {
-      alert('Acceso no autorizado: Solo las empresas pueden publicar o editar ofertas.');
-      navigate('/login');
+      setEstadoAcceso('denegado');
+      setMensajeErrorAcceso('Solo cuentas de empresa tienen permisos para publicar o editar ofertas.');
       return;
     }
 
@@ -44,24 +56,26 @@ export default function PublicarOferta() {
       .then(data => setTodasCompetencias(data))
       .catch(err => console.error("Error al cargar competencias:", err));
 
+    // 2. Si estamos en modo edición, validar pertenencia de la oferta
     if (id) {
+      setEstadoAcceso('verificando');
       fetch(`/api/ofertas/${id}`)
         .then(res => {
-          if (!res.ok) throw new Error('Oferta no encontrada');
+          if (!res.ok) throw new Error('Oferta no encontrada o recurso inaccesible');
           return res.json();
         })
         .then(data => {
-          // CP-RS2.2-03: Control de acceso para evitar que una empresa edite ofertas ajenas
+          // Validar que la oferta pertenezca a la empresa actual
           if (data.empresa_id && Number(data.empresa_id) !== Number(usuario.id)) {
-            alert('Acceso no autorizado: No tienes permiso para editar ofertas de otra empresa.');
-            navigate('/mis-ofertas');
+            setEstadoAcceso('denegado');
+            setMensajeErrorAcceso('Acceso Denegado (403): No tienes permiso para editar ofertas que pertenecen a otra empresa.');
             return;
           }
 
           const fechaCierre = new Date(data.fecha_cierre);
           if (fechaCierre < new Date()) {
-            alert('Esta oferta ya ha vencido su fecha límite y no puede ser modificada.');
-            navigate('/mis-ofertas');
+            setEstadoAcceso('denegado');
+            setMensajeErrorAcceso('Esta oferta ya ha vencido su fecha límite y no puede ser modificada.');
             return;
           }
 
@@ -85,7 +99,6 @@ export default function PublicarOferta() {
             competencias: data.competencia_ids || []
           });
 
-          // Determinar tipo de remuneración existente
           const rem = data.remuneracion || '';
           if (rem.toLowerCase().includes('no pagada')) {
             setTipoRemuneracion('No pagada');
@@ -93,14 +106,18 @@ export default function PublicarOferta() {
           } else {
             setTipoRemuneracion('Pagada');
             const digits = rem.replace(/\D/g, '');
-            const num = digits ? Math.max(60000, Number(digits)) : 360000;
+            const num = digits ? Number(digits) : 360000;
             setMontoRemuneracion(String(num));
           }
+
+          setEstadoAcceso('autorizado');
         })
         .catch(err => {
-          alert('Error al obtener la oferta o no existe.');
-          navigate('/mis-ofertas');
+          setEstadoAcceso('denegado');
+          setMensajeErrorAcceso('La oferta solicitada no existe o no se pudo cargar.');
         });
+    } else {
+      setEstadoAcceso('autorizado');
     }
   }, [id, navigate]);
 
@@ -220,8 +237,46 @@ export default function PublicarOferta() {
     return acc;
   }, {});
 
-  const labelStyle = { display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#475569', marginBottom: '5px' };
-  const inputStyle = { width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '0.88rem', outline: 'none', transition: 'all 0.2s' };
+
+  if (estadoAcceso === 'verificando') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'sans-serif' }}>
+        <div style={{ textAlign: 'center', padding: '30px' }}>
+          <div style={{ width: '42px', height: '42px', border: '4px solid #e2e8f0', borderTop: '4px solid #2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          <h3 style={{ color: '#0f172a', margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: '700' }}>Verificando permisos de edición...</h3>
+          <p style={{ color: '#64748b', margin: 0, fontSize: '0.9rem' }}>Comprobando autorización para acceder a este recurso.</p>
+        </div>
+      </div>
+    );
+  }
+
+
+  if (estadoAcceso === 'denegado') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'sans-serif', padding: '20px' }}>
+        <div style={{ maxWidth: '500px', width: '100%', backgroundColor: 'white', borderRadius: '16px', padding: '40px 30px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', textAlign: 'center', border: '1px solid #fee2e2' }}>
+          <div style={{ width: '64px', height: '64px', backgroundColor: '#fef2f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#ef4444' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+          </div>
+          <h2 style={{ color: '#991b1b', margin: '0 0 12px 0', fontSize: '1.4rem', fontWeight: '800' }}>Acceso No Autorizado</h2>
+          <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '28px' }}>{mensajeErrorAcceso}</p>
+          <button
+            onClick={() => {
+              if (!usuario) navigate('/login');
+              else if (usuario.rol === 'estudiante') navigate('/ver-ofertas');
+              else navigate('/mis-ofertas');
+            }}
+            style={{ padding: '12px 24px', backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s' }}
+            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#1e293b'; }}
+            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#0f172a'; }}
+          >
+            {!usuario ? 'Ir al Inicio de Sesión' : usuario.rol === 'estudiante' ? 'Volver al Catálogo de Prácticas' : 'Volver a Mis Ofertas'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

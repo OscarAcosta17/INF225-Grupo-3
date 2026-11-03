@@ -19,7 +19,7 @@ export default function VerOfertas() {
   const [misCompetenciasNombres, setMisCompetenciasNombres] = useState([]);
   const [misPostulacionesIds, setMisPostulacionesIds] = useState([]); // Nuevo estado para postulaciones
   const [filtrosCompetencias, setFiltrosCompetencias] = useState([]);
-  const [filtrosRS3, setFiltrosRS3] = useState({ localidad: '', modalidad: '', montoMin: 60000, duracionMeses: 0 });
+   const [filtrosRS3, setFiltrosRS3] = useState({ localidad: '', modalidad: '', montoMin: 0, duracionMeses: 0 });
   const [loading, setLoading] = useState(false);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [datosPostulacion, setDatosPostulacion] = useState({ telefono: '', correo: usuario?.correo || '' });
@@ -85,7 +85,7 @@ export default function VerOfertas() {
     if (competenciasIds.length > 0) url += `competencias_filtro=${competenciasIds.join(',')}&`;
     if (rs3.localidad) url += `localidad=${rs3.localidad}&`;
     if (rs3.modalidad) url += `modalidad=${rs3.modalidad}&`;
-    if (Number(rs3.montoMin) > 60000) {
+        if (Number(rs3.montoMin) > 0) {
       url += `remuneracion=Pagada&monto_min=${rs3.montoMin}&`;
     }
     if (Number(rs3.duracionMeses) > 0) {
@@ -120,12 +120,12 @@ export default function VerOfertas() {
     filtrosRS3.localidad ||
     filtrosRS3.modalidad ||
     Number(filtrosRS3.duracionMeses) > 0 ||
-    Number(filtrosRS3.montoMin) > 60000 ||
+    Number(filtrosRS3.montoMin) > 0 ||
     filtrosCompetencias.length > 0
   );
 
   const handleLimpiarFiltros = () => {
-    setFiltrosRS3({ localidad: '', modalidad: '', montoMin: 60000, duracionMeses: 0 });
+    setFiltrosRS3({ localidad: '', modalidad: '', montoMin: 0, duracionMeses: 0 });
     setFiltrosCompetencias([]);
   };
 
@@ -234,7 +234,7 @@ export default function VerOfertas() {
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <button 
-              onClick={() => { setViewMode(null); setFiltrosCompetencias([]); setFiltrosRS3({localidad:'', modalidad:'', montoMin:60000, duracionMeses:0}); }} 
+              onClick={() => { setViewMode(null); setFiltrosCompetencias([]); setFiltrosRS3({localidad:'', modalidad:'', montoMin:0, duracionMeses:0}); }} 
               style={{ padding: '10px', backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', transition: 'all 0.2s' }}
               onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
               onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
@@ -354,8 +354,8 @@ export default function VerOfertas() {
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <IconMoney /> Remuneración
                 </span>
-                <span style={{ fontSize: '0.78rem', color: Number(filtrosRS3.montoMin) > 60000 ? '#2563eb' : '#64748b', fontWeight: '700' }}>
-                  {Number(filtrosRS3.montoMin) > 60000 ? `Desde $${Number(filtrosRS3.montoMin).toLocaleString('es-CL')}` : 'Desde $60.000 (Todas)'}
+                               <span style={{ fontSize: '0.78rem', color: Number(filtrosRS3.montoMin) > 0 ? '#2563eb' : '#64748b', fontWeight: '700' }}>
+                  {Number(filtrosRS3.montoMin) > 0 ? `Desde $${Number(filtrosRS3.montoMin).toLocaleString('es-CL')}` : 'Desde cualquier monto'}
                 </span>
               </label>
               <div style={{ height: '39px', padding: '0 6px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center' }}>
@@ -363,12 +363,12 @@ export default function VerOfertas() {
                   type="range"
                   name="montoMin"
                   className="edge-slider"
-                  min="60000"
+                  min="0"
                   max="1000000"
-                  step="10000"
+                  step="25000"
                   value={filtrosRS3.montoMin}
                   onChange={handleFiltroRS3Change}
-                  style={{ background: `linear-gradient(to right, #93c5fd ${((Number(filtrosRS3.montoMin) - 60000) / 940000) * 100}%, #e2e8f0 ${((Number(filtrosRS3.montoMin) - 60000) / 940000) * 100}%)` }}
+                  style={{ background: `linear-gradient(to right, #93c5fd ${(Number(filtrosRS3.montoMin) / 1000000) * 100}%, #e2e8f0 ${(Number(filtrosRS3.montoMin) / 1000000) * 100}%)` }}
                 />
               </div>
             </div>
