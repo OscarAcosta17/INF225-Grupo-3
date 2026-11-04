@@ -3,8 +3,9 @@
     "version": "1.0.0",
     "main": "index.js",
     "scripts": {
-        "start": "node index.js",
+        "start": "node initDB.js && node index.js",
         "init": "node initDB.js",
+        "server": "node index.js",
         "dev": "node initDB.js && node index.js"
     },
     "dependencies": {

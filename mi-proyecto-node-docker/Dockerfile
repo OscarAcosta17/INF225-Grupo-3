@@ -7,8 +7,9 @@ RUN npm install
 
 COPY . .
 
-# Instalar wait-port globalmente
+# Instalar wait-port globalmente para entornos locales que lo requieran
 RUN npm install -g wait-port
 
-# Comando modificado para esperar a PostgreSQL
-CMD ["sh", "-c", "wait-port postgres_db:5432 && npm start"]
+# Si no hay DATABASE_URL y existe DB_HOST, esperamos a la base de datos local.
+# Si estamos en Render (DATABASE_URL definida), iniciamos de inmediato.
+CMD ["sh", "-c", "if [ -z \"$DATABASE_URL\" ] && [ -n \"$DB_HOST\" ]; then wait-port ${DB_HOST}:${DB_PORT:-5432}; fi; node initDB.js && node index.js"]
