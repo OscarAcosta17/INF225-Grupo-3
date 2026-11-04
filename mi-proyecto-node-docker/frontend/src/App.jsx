@@ -6,6 +6,7 @@ import Perfil from './pages/Perfil';
 import MisOfertas from './pages/MisOfertas';
 import PublicarOferta from './pages/PublicarOferta';
 import VerOfertas from './pages/VerOfertas';
+import Bitacora from './pages/Bitacora';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/publicar-oferta" element={<PublicarOferta />} />
         <Route path="/editar-oferta/:id" element={<PublicarOferta />} />
         <Route path="/ver-ofertas" element={<VerOfertas />} />
+        <Route path="/bitacora" element={<Bitacora />} />
       </Routes>
     </BrowserRouter>
   );

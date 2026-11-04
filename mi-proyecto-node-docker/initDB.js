@@ -111,6 +111,25 @@ const createTables = async () => {
     ALTER TABLE postulaciones ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);
     ALTER TABLE postulaciones ADD COLUMN IF NOT EXISTS correo_contacto VARCHAR(100);
     ALTER TABLE postulaciones ADD COLUMN IF NOT EXISTS cv_path VARCHAR(255);
+
+    -- 8. Tabla de Bitacora 
+    CREATE TABLE IF NOT EXISTS bitacoras (
+        id SERIAL PRIMARY KEY,
+        estudiante_id INTEGER NOT NULL REFERENCES estudiantes(id) ON DELETE CASCADE,
+        fecha DATE NOT NULL,
+        hora_inicio TIME NOT NULL,
+        hora_fin TIME NOT NULL,
+        horas_trabajadas NUMERIC(4, 2) NOT NULL,
+        actividades TEXT NOT NULL,
+        actividades_pendientes TEXT,
+        observaciones TEXT,
+        fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT unq_estudiante_fecha UNIQUE (estudiante_id, fecha)
+    );
+  
+
+
+
   `;
 
   try {
@@ -224,10 +243,16 @@ const createTables = async () => {
       INSERT INTO estudiante_competencia (estudiante_id, competencia_id) VALUES
       (1, 4), (1, 12), (1, 16), (1, 15), (1, 25)
       ON CONFLICT DO NOTHING;
+
+      INSERT INTO bitacoras (estudiante_id, fecha, hora_inicio, hora_fin, horas_trabajadas, actividades, actividades_pendientes, observaciones) VALUES
+      (1, '2026-11-01', '09:00', '18:00', 9.00, 'Onboarding en la empresa, configuración del entorno local Docker y clonación de repositorios.', 'Revisar documentación de arquitectura', 'Primer día presencial con el tutor.'),
+      (1, '2026-11-02', '09:00', '17:30', 8.50, 'Desarrollo de componentes React para el dashboard y conexión inicial a la API REST.', 'Implementar validaciones de formulario', 'Jornada fluida, sin bloqueos técnicos.')
+      ON CONFLICT (estudiante_id, fecha) DO NOTHING;
       
       SELECT setval('ofertas_id_seq', (SELECT MAX(id) FROM ofertas));
       SELECT setval('usuarios_id_seq', (SELECT MAX(id) FROM usuarios));
       SELECT setval('empresas_id_seq', (SELECT MAX(id) FROM empresas));
+      SELECT setval('bitacoras_id_seq', (SELECT COALESCE(MAX(id), 1) FROM bitacoras));
     `);
     console.log("Datos de prueba completos cargados exitosamente.");
 
