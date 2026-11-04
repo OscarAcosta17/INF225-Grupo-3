@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl, getFileUrl } from '../config/api';
 
 const IconUserCheck = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>;
 const IconSave = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>;
@@ -32,7 +33,7 @@ export default function ConfigurarPerfil() {
 
     const cargarDatos = async () => {
       try {
-        const resPerfil = await fetch(`/api/competencias/perfil/${usuarioLocal.id}`);
+        const resPerfil = await fetch(apiUrl(`/api/competencias/perfil/${usuarioLocal.id}`));
         if (resPerfil.ok) {
           const dataPerfil = await resPerfil.json();
           setPerfilInfo({
@@ -46,11 +47,11 @@ export default function ConfigurarPerfil() {
           });
         }
 
-        const resComp = await fetch('/api/competencias');
+        const resComp = await fetch(apiUrl('/api/competencias'));
         const dataComp = await resComp.json();
         setCompetencias(dataComp);
 
-        const resMisComp = await fetch(`/api/competencias/estudiante/${usuarioLocal.id}`);
+        const resMisComp = await fetch(apiUrl(`/api/competencias/estudiante/${usuarioLocal.id}`));
         if (resMisComp.ok) {
           const dataMisComp = await resMisComp.json();
           setSeleccionadas(dataMisComp.map(c => c.id));
@@ -104,12 +105,12 @@ export default function ConfigurarPerfil() {
         formData.append('cv_file', perfilInfo.cv_file);
       }
 
-      const resPerfil = await fetch(`/api/competencias/perfil/${usuarioLocal.id}`, {
+      const resPerfil = await fetch(apiUrl(`/api/competencias/perfil/${usuarioLocal.id}`), {
         method: 'PUT',
         body: formData 
       });
 
-      const resComp = await fetch('/api/competencias/guardar', {
+      const resComp = await fetch(apiUrl('/api/competencias/guardar'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -218,7 +219,7 @@ export default function ConfigurarPerfil() {
                   {perfilInfo.enlace_cv && (
                     <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f1f5f9', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
                       <span>📄 CV actual registrado</span>
-                      <a href={`http://localhost:4000${perfilInfo.enlace_cv}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600', textDecoration: 'none' }}>
+                      <a href={getFileUrl(perfilInfo.enlace_cv)} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600', textDecoration: 'none' }}>
                         Ver PDF
                       </a>
                     </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl, getFileUrl } from '../config/api';
 
 const IconLocation = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>;
 const IconBuilding = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>;
@@ -39,12 +40,12 @@ export default function VerOfertas() {
       return;
     }
     
-    fetch('/api/competencias')
+    fetch(apiUrl('/api/competencias'))
       .then(res => res.json())
       .then(data => setTodasCompetencias(data));
       
     if (usuario.rol === 'estudiante' && usuario.id) {
-      fetch(`/api/competencias/perfil/${usuario.id}`)
+      fetch(apiUrl(`/api/competencias/perfil/${usuario.id}`))
         .then(async (res) => {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'No se pudo cargar tu perfil');
@@ -54,7 +55,7 @@ export default function VerOfertas() {
         .catch((error) => setErrorPerfilPostulacion(error.message))
         .finally(() => setCargandoPerfilPostulacion(false));
 
-      fetch(`/api/competencias/estudiante/${usuario.id}`)
+      fetch(apiUrl(`/api/competencias/estudiante/${usuario.id}`))
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) setMisCompetenciasNombres(data.map(c => c.nombre));
@@ -62,7 +63,7 @@ export default function VerOfertas() {
         .catch(err => console.error("Error cargando mis competencias:", err));
 
       // Fetch postulaciones
-      fetch(`/api/postulaciones/estudiante/${usuario.id}`)
+      fetch(apiUrl(`/api/postulaciones/estudiante/${usuario.id}`))
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) setMisPostulacionesIds(data.map(p => p.oferta_id));
@@ -79,7 +80,7 @@ export default function VerOfertas() {
 
   const cargarOfertas = (competenciasIds, rs3, mode) => {
     setLoading(true);
-    let url = `/api/ofertas?`;
+    let url = apiUrl('/api/ofertas?');
     
     if (mode === 'personalizadas') url += `estudiante_id=${usuario.id}&`;
     if (competenciasIds.length > 0) url += `competencias_filtro=${competenciasIds.join(',')}&`;
@@ -144,7 +145,7 @@ export default function VerOfertas() {
       formData.append('correo', datosPostulacion.correo);
       if (cvPostulacion) formData.append('cv_file', cvPostulacion);
 
-      const response = await fetch('/api/postulaciones/postular', {
+      const response = await fetch(apiUrl('/api/postulaciones/postular'), {
         method: 'POST',
         body: formData
       });
@@ -636,7 +637,7 @@ export default function VerOfertas() {
                 {cargandoPerfilPostulacion ? (
                   <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Cargando CV del perfil...</span>
                 ) : perfilPostulacion?.enlace_cv ? (
-                  <a href={`http://localhost:4000${perfilPostulacion.enlace_cv}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600' }}>
+                  <a href={getFileUrl(perfilPostulacion.enlace_cv)} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600' }}>
                     Ver CV del perfil (se adjuntará a esta postulación)
                   </a>
                 ) : (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { apiUrl } from '../config/api';
 
 const IconBuilding = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>;
 const IconSave = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>;
@@ -51,7 +52,7 @@ export default function PublicarOferta() {
       return;
     }
 
-    fetch('/api/competencias')
+    fetch(apiUrl('/api/competencias'))
       .then(res => res.json())
       .then(data => setTodasCompetencias(data))
       .catch(err => console.error("Error al cargar competencias:", err));
@@ -59,7 +60,7 @@ export default function PublicarOferta() {
     // 2. Si estamos en modo edición, validar pertenencia de la oferta
     if (id) {
       setEstadoAcceso('verificando');
-      fetch(`/api/ofertas/${id}`)
+      fetch(apiUrl(`/api/ofertas/${id}`))
         .then(res => {
           if (!res.ok) throw new Error('Oferta no encontrada o recurso inaccesible');
           return res.json();
@@ -201,7 +202,7 @@ export default function PublicarOferta() {
     }
 
     setLoading(true);
-    const url = id ? `/api/ofertas/${id}` : '/api/ofertas';
+    const url = id ? apiUrl(`/api/ofertas/${id}`) : apiUrl('/api/ofertas');
     const method = id ? 'PUT' : 'POST';
 
     try {

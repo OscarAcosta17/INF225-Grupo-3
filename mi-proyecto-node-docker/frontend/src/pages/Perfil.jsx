@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl, getFileUrl } from '../config/api';
 
 const IconEdit = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>;
 const IconSearch = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
@@ -34,14 +35,14 @@ export default function Perfil() {
     const cargarDatos = async () => {
       try {
         // Cargar datos de contacto
-        const resPerfil = await fetch(`/api/competencias/perfil/${usuarioLocal.id}`);
+        const resPerfil = await fetch(apiUrl(`/api/competencias/perfil/${usuarioLocal.id}`));
         if (resPerfil.ok) {
           const dataPerfil = await resPerfil.json();
           setDatosPerfil(dataPerfil);
         }
 
         // Cargar competencias
-        const resComp = await fetch(`/api/competencias/estudiante/${usuarioLocal.id}`);
+        const resComp = await fetch(apiUrl(`/api/competencias/estudiante/${usuarioLocal.id}`));
         if (resComp.ok) {
           const data = await resComp.json();
           setMisCompetencias(data);
@@ -52,7 +53,7 @@ export default function Perfil() {
         }
 
         // Cargar postulaciones
-        const resPost = await fetch(`/api/postulaciones/estudiante/${usuarioLocal.id}`);
+        const resPost = await fetch(apiUrl(`/api/postulaciones/estudiante/${usuarioLocal.id}`));
         if (resPost.ok) {
           const data = await resPost.json();
           setMisPostulaciones(data);
@@ -214,7 +215,7 @@ export default function Perfil() {
                   {datosPerfil?.enlace_cv && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: '#64748b', fontWeight: '500' }}>Currículum:</span>
-                      <a href={`http://localhost:4000${datosPerfil.enlace_cv}`} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontWeight: '600', textDecoration: 'none', backgroundColor: '#eff6ff', padding: '4px 10px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                      <a href={getFileUrl(datosPerfil.enlace_cv)} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontWeight: '600', textDecoration: 'none', backgroundColor: '#eff6ff', padding: '4px 10px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
                         Ver CV
                       </a>
                     </div>

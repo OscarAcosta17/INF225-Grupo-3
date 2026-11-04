@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { apiUrl } from '../config/api';
 
 export default function Registro() {
   const [formData, setFormData] = useState({ correo: '', contrasena: '', nombres: '', apellidos: '', rol: 'estudiante', nombre_empresa: '' });
@@ -20,7 +21,7 @@ export default function Registro() {
     setMensajeError('');
 
     try {
-      const response = await fetch('/api/auth/enviar-codigo', {
+      const response = await fetch(apiUrl('/api/auth/enviar-codigo'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo: formData.correo, rol: formData.rol })
@@ -47,7 +48,7 @@ export default function Registro() {
     setMensajeError('');
 
     try {
-      const response = await fetch('/api/auth/registro', {
+      const response = await fetch(apiUrl('/api/auth/registro'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, codigo })

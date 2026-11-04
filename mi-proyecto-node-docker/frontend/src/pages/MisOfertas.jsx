@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl, getFileUrl } from '../config/api';
 
 const IconPlus = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
 const IconLogOut = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
@@ -26,7 +27,7 @@ export default function MisOfertas() {
       return;
     }
 
-    fetch(`/api/ofertas?empresa_id=${usuario.id}`)
+    fetch(apiUrl(`/api/ofertas?empresa_id=${usuario.id}`))
       .then(res => res.json())
       .then(data => setOfertas(data))
       .catch(err => console.error(err));
@@ -43,7 +44,7 @@ export default function MisOfertas() {
     setErrorPostulantes('');
     setCargandoPostulantes(true);
     try {
-      const response = await fetch(`/api/postulaciones/oferta/${oferta.id}/empresa/${usuario.id}`);
+      const response = await fetch(apiUrl(`/api/postulaciones/oferta/${oferta.id}/empresa/${usuario.id}`));
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los postulantes');
       setPostulantes(data);
@@ -253,7 +254,7 @@ export default function MisOfertas() {
                     <p style={{ margin: '8px 0 0', color: '#475569' }}>Correo: <a href={`mailto:${postulante.correo_contacto}`}>{postulante.correo_contacto}</a></p>
                     <p style={{ margin: '4px 0', color: '#475569' }}>Teléfono: <a href={`tel:${postulante.telefono}`}>{postulante.telefono}</a></p>
                     {postulante.cv_path ? (
-                      <p style={{ margin: '4px 0 8px' }}><a href={`http://localhost:4000${postulante.cv_path}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600' }}>Abrir currículum (PDF)</a></p>
+                      <p style={{ margin: '4px 0 8px' }}><a href={getFileUrl(postulante.cv_path)} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600' }}>Abrir currículum (PDF)</a></p>
                     ) : <p style={{ margin: '4px 0 8px', color: '#64748b' }}>Sin CV adjunto</p>}
                     <small style={{ color: '#64748b' }}>Estado: {postulante.estado}</small>
                   </article>

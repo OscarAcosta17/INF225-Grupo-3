@@ -1,9 +1,10 @@
 const express = require('express');
+const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const pool = require('./db'); 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 const uploadDir = path.join(__dirname, 'uploads/cvs');
 if (!fs.existsSync(uploadDir)) {
@@ -20,6 +21,7 @@ const bitacoraRoutes = require('./src/routes/bitacora');
 const { iniciarServicioCaducidad } = require('./src/services/caducidadService');
 
 // (configuraciones generales)
+app.use(cors());
 app.use(express.json());
 app.use(express.static('public')); 
 

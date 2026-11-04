@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '../config/api';
 
 const IconArrowLeft = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
 const IconChevronLeft = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>;
@@ -57,7 +58,7 @@ export default function Bitacora() {
   const cargarBitacoras = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/bitacora/estudiante/${usuario.id}`);
+      const res = await fetch(apiUrl(`/api/bitacora/estudiante/${usuario.id}`));
       if (res.ok) {
         const data = await res.json();
         setBitacoras(data.bitacoras || []);
@@ -178,7 +179,7 @@ export default function Bitacora() {
 
     setGuardando(true);
     try {
-      const url = modoEdicion ? `/api/bitacora/${idEditando}` : '/api/bitacora';
+      const url = modoEdicion ? apiUrl(`/api/bitacora/${idEditando}`) : apiUrl('/api/bitacora');
       const method = modoEdicion ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -210,7 +211,7 @@ export default function Bitacora() {
     if (!window.confirm('¿Seguro que deseas eliminar el registro de este día?')) return;
 
     try {
-      const res = await fetch(`/api/bitacora/${entradaActual.id}?estudiante_id=${usuario.id}`, {
+      const res = await fetch(apiUrl(`/api/bitacora/${entradaActual.id}?estudiante_id=${usuario.id}`), {
         method: 'DELETE'
       });
       if (res.ok) {
