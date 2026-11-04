@@ -1,0 +1,22 @@
+name: Keep Backend Alive
+
+on:
+  schedule:
+    # Se ejecuta cada 10 minutos para evitar que el backend de Render se duerma
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Permite dispararlo manualmente desde la pestaña Actions en GitHub
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consulta fantasma al backend
+        run: |
+          echo "Enviando ping al backend en Render..."
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://chambahub-backend.onrender.com/)
+          echo "Respuesta del backend HTTP: $STATUS_CODE"
+          if [ "$STATUS_CODE" -eq 200 ]; then
+            echo "El backend está activo y respondiendo correctamente."
+          else
+            echo "Aviso: el backend devolvió código $STATUS_CODE"
+          fi
