@@ -220,7 +220,7 @@ export default function Login() {
               <p style={{ color: '#64748b', fontSize: '0.95rem', margin: 0 }}>
                 ¿Aún no tienes cuenta?{' '}
                 <Link to="/registro" style={{ color: '#3b82f6', fontWeight: '600', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={(e) => e.target.style.color = '#2563eb'} onMouseOut={(e) => e.target.style.color = '#3b82f6'}>
-                  Regístrate como empresa
+                  Crear una cuenta nueva
                 </Link>
               </p>
             </div>

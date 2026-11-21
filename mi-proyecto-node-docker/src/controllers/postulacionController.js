@@ -67,6 +67,27 @@ const obtenerPostulacionesPorOferta = async (req, res) => {
     }
 };
 
+const decidirPostulacion = async (req, res) => {
+    try {
+        const { postulacionId } = req.params;
+        const { empresa_id, estado } = req.body;
+        if (!empresa_id) {
+            return res.status(400).json({ error: 'Falta identificar la empresa' });
+        }
+
+        const resultado = await PostulacionService.decidirPostulacion(postulacionId, empresa_id, estado);
+        return res.status(200).json({
+            mensaje: resultado.notificacionEnviada
+                ? `Postulación ${resultado.estado.toLowerCase()} y notificación enviada.`
+                : `Postulación ${resultado.estado.toLowerCase()}.`,
+            data: resultado,
+            ...(resultado.advertencia ? { advertencia: resultado.advertencia } : {})
+        });
+    } catch (error) {
+        return res.status(error.statusCode || 500).json({ error: error.message || 'No se pudo guardar la decisión' });
+    }
+};
+
 const obtenerPostulacionesPorEstudiante = async (req, res) => {
     try {
         const { id } = req.params;
@@ -77,4 +98,4 @@ const obtenerPostulacionesPorEstudiante = async (req, res) => {
     }
 };
 
-module.exports = { crearPostulacion, obtenerPostulacionesPorEstudiante, obtenerPostulacionesPorOferta };
+module.exports = { crearPostulacion, obtenerPostulacionesPorEstudiante, obtenerPostulacionesPorOferta, decidirPostulacion };

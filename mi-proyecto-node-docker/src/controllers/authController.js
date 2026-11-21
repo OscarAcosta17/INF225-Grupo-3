@@ -1,16 +1,8 @@
 const pool = require('../../db');
-const nodemailer = require('nodemailer');
+const { transporter } = require('../services/emailService');
 
 
 const codigosVerificacion = new Map();
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'chambahub.usm@gmail.com', 
-    pass: 'lxmd gbtv wuuy pwyk'  
-  }
-});
 
 //Genera y envía código de 6 dígitos
 const enviarCodigoRegistro = async (req, res) => {

@@ -18,6 +18,7 @@ export default function MisOfertas() {
   const [postulantes, setPostulantes] = useState([]);
   const [cargandoPostulantes, setCargandoPostulantes] = useState(false);
   const [errorPostulantes, setErrorPostulantes] = useState('');
+  const [postulacionEnProceso, setPostulacionEnProceso] = useState(null);
   const navigate = useNavigate();
   const usuario = useMemo(() => JSON.parse(localStorage.getItem('usuario')), []);
 
@@ -52,6 +53,43 @@ export default function MisOfertas() {
       setErrorPostulantes(error.message);
     } finally {
       setCargandoPostulantes(false);
+    }
+  };
+
+  const decidirPostulacion = async (postulante, estado) => {
+    const decision = estado === 'Aceptado' ? 'aceptar' : 'rechazar';
+    const confirmado = window.confirm(`¿Confirmas que deseas ${decision} a este postulante? Esta decisión solo se puede realizar una vez.`);
+    if (!confirmado) return;
+
+    setPostulacionEnProceso(postulante.id);
+    try {
+      const response = await fetch(apiUrl(`/api/postulaciones/${postulante.id}/decision`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresa_id: usuario.id, estado })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        const error = new Error(data.error || 'No se pudo guardar la decisión');
+        error.status = response.status;
+        throw error;
+      }
+
+      setPostulantes(actuales => actuales.map(item =>
+        item.id === postulante.id ? { ...item, estado: data.data.estado } : item
+      ));
+      if (data.advertencia) {
+        window.alert(data.advertencia);
+      } else {
+        window.alert(data.mensaje);
+      }
+    } catch (error) {
+      window.alert(error.message);
+      if (error.status === 409 && ofertaPostulantes) {
+        verPostulantes(ofertaPostulantes);
+      }
+    } finally {
+      setPostulacionEnProceso(null);
     }
   };
 
@@ -256,7 +294,32 @@ export default function MisOfertas() {
                     {postulante.cv_path ? (
                       <p style={{ margin: '4px 0 8px' }}><a href={getFileUrl(postulante.cv_path)} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: '600' }}>Abrir currículum (PDF)</a></p>
                     ) : <p style={{ margin: '4px 0 8px', color: '#64748b' }}>Sin CV adjunto</p>}
-                    <small style={{ color: '#64748b' }}>Estado: {postulante.estado}</small>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                      <small style={{ color: '#64748b' }}>Estado: {postulante.estado}</small>
+                      {postulante.estado === 'Pendiente' && postulante.puede_decidir !== false && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            disabled={postulacionEnProceso === postulante.id}
+                            onClick={() => decidirPostulacion(postulante, 'Aceptado')}
+                            style={{ padding: '7px 12px', backgroundColor: '#15803d', color: 'white', border: 0, borderRadius: '6px', fontWeight: '600', cursor: postulacionEnProceso === postulante.id ? 'wait' : 'pointer', opacity: postulacionEnProceso === postulante.id ? 0.65 : 1 }}
+                          >
+                            Aceptar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={postulacionEnProceso === postulante.id}
+                            onClick={() => decidirPostulacion(postulante, 'Rechazado')}
+                            style={{ padding: '7px 12px', backgroundColor: '#b91c1c', color: 'white', border: 0, borderRadius: '6px', fontWeight: '600', cursor: postulacionEnProceso === postulante.id ? 'wait' : 'pointer', opacity: postulacionEnProceso === postulante.id ? 0.65 : 1 }}
+                          >
+                            Rechazar
+                          </button>
+                        </div>
+                      )}
+                      {postulante.estado === 'Pendiente' && postulante.puede_decidir === false && (
+                        <small style={{ color: '#b45309' }}>El plazo de decisión terminó; el estado se actualizará automáticamente.</small>
+                      )}
+                    </div>
                   </article>
                 ))}
               </div>

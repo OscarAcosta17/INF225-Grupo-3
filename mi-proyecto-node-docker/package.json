@@ -6,7 +6,8 @@
         "start": "node initDB.js && node index.js",
         "init": "node initDB.js",
         "server": "node index.js",
-        "dev": "node initDB.js && node index.js"
+        "dev": "node initDB.js && node index.js",
+        "sanear-postulaciones-invalidas": "node src/scripts/sanearPostulacionesInvalidas.js"
     },
     "dependencies": {
         "cors": "^2.8.6",

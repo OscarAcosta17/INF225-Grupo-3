@@ -1,4 +1,5 @@
 const pool = require('../../db');
+const { ZONA_HORARIA } = require('../config/systemLimits');
 
 // Validación común para RS2.1 y RS2.2
 const validarDatosOferta = ({ titulo, descripcion, requisitos, fecha_cierre, localidad, modalidad, remuneracion, duracion, competencias }) => {
@@ -113,11 +114,13 @@ const obtenerOfertas = async (req, res) => {
       params.push(empresa_id);
       whereClauses.push(`empresa_id = $${params.length}`);
       if (req.query.solo_vigentes === 'true') {
-        whereClauses.push(`(fecha_cierre >= CURRENT_TIMESTAMP OR fecha_cierre::date >= CURRENT_DATE) AND (activa IS NULL OR activa = TRUE)`);
+        params.push(ZONA_HORARIA);
+        whereClauses.push(`fecha_cierre::date >= (CURRENT_TIMESTAMP AT TIME ZONE $${params.length})::date AND (activa IS NULL OR activa = TRUE)`);
       }
     } else {
       // D-01: Excluir del catálogo y de los filtros las ofertas cuya fecha límite ya pasó o que estén caducadas
-      whereClauses.push(`(fecha_cierre >= CURRENT_TIMESTAMP OR fecha_cierre::date >= CURRENT_DATE) AND (activa IS NULL OR activa = TRUE)`);
+      params.push(ZONA_HORARIA);
+      whereClauses.push(`fecha_cierre::date >= (CURRENT_TIMESTAMP AT TIME ZONE $${params.length})::date AND (activa IS NULL OR activa = TRUE)`);
     }
 
     if (localidad) {
@@ -338,18 +341,18 @@ const obtenerMetricasRecomendacion = async (req, res) => {
     const vigentesResult = await pool.query(`
       SELECT COUNT(*)::int as total_vigentes 
       FROM ofertas 
-      WHERE (fecha_cierre >= CURRENT_TIMESTAMP OR fecha_cierre::date >= CURRENT_DATE) 
+      WHERE fecha_cierre::date >= (CURRENT_TIMESTAMP AT TIME ZONE $1)::date
         AND (activa IS NULL OR activa = TRUE)
-    `);
+    `, [ZONA_HORARIA]);
     const totalVigentes = vigentesResult.rows[0].total_vigentes;
 
     // 3. Total de ofertas vencidas/caducadas en BD
     const caducadasResult = await pool.query(`
       SELECT COUNT(*)::int as total_caducadas 
       FROM ofertas 
-      WHERE (fecha_cierre < CURRENT_TIMESTAMP OR fecha_cierre::date < CURRENT_DATE) 
+      WHERE fecha_cierre::date < (CURRENT_TIMESTAMP AT TIME ZONE $1)::date
          OR activa = FALSE
-    `);
+    `, [ZONA_HORARIA]);
     const totalCaducadas = caducadasResult.rows[0].total_caducadas;
 
     // 4. Ejecución del algoritmo para el estudiante indicado
@@ -365,7 +368,7 @@ const obtenerMetricasRecomendacion = async (req, res) => {
         JOIN empresas e ON o.empresa_id = e.id
         LEFT JOIN oferta_competencia oc ON o.id = oc.oferta_id
         LEFT JOIN competencias c ON oc.competencia_id = c.id
-        WHERE (o.fecha_cierre >= CURRENT_TIMESTAMP OR o.fecha_cierre::date >= CURRENT_DATE) 
+        WHERE o.fecha_cierre::date >= (CURRENT_TIMESTAMP AT TIME ZONE $2)::date
           AND (o.activa IS NULL OR o.activa = TRUE)
         GROUP BY o.id, e.nombre_empresa
       )
@@ -382,7 +385,7 @@ const obtenerMetricasRecomendacion = async (req, res) => {
       ORDER BY coincidencia DESC, fecha_publicacion DESC
     `;
 
-    const resultRecomendadas = await pool.query(queryRecomendaciones, [estCompetencias]);
+    const resultRecomendadas = await pool.query(queryRecomendaciones, [estCompetencias, ZONA_HORARIA]);
     const totalEvaluadas = resultRecomendadas.rows.length;
 
     // 5. Verificaciones de calidad

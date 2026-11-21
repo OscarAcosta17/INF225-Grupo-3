@@ -9,9 +9,8 @@
 // 1. Plazo por defecto de vigencia de una oferta (en días) si no se especifica
 const DIAS_VIGENCIA_OFERTA_DEFAULT = parseInt(process.env.DIAS_VIGENCIA_OFERTA_DEFAULT || '30', 10);
 
-// 2. Plazo máximo de inactividad de una postulación antes de pasar a 'Sin respuesta' (RS6b)
-// Consumido por Adrian en el servicio de postulaciones
-const DIAS_ABANDONO_POSTULACION = parseInt(process.env.DIAS_ABANDONO_POSTULACION || '15', 10);
+// 2. Seven-day grace period for company decisions after offer closing (RS6b)
+const DIAS_ABANDONO_POSTULACION = parseInt(process.env.DIAS_ABANDONO_POSTULACION || '7', 10);
 
 // 3. Frecuencia del proceso autónomo de caducidad en minutos (RS6a)
 const CADUCIDAD_CHECK_INTERVAL_MINUTOS = parseInt(process.env.CADUCIDAD_CHECK_MINUTOS || '10', 10);
@@ -36,25 +35,26 @@ const esOfertaVencida = (fechaCierre) => {
 /**
  * Determina si una postulación superó el plazo máximo sin respuesta de la empresa
  * Función compartida para que Adrian la utilice en RS6b
- * @param {string|Date} fechaPostulacion 
+ * @param {string|Date} fechaCierreOferta
  * @param {number} diasLimite - Por defecto DIAS_ABANDONO_POSTULACION
  * @returns {boolean}
  */
-const esPostulacionAbandonada = (fechaPostulacion, diasLimite = DIAS_ABANDONO_POSTULACION) => {
-  if (!fechaPostulacion) return false;
-  const fechaPost = new Date(fechaPostulacion);
-  const milisegundosLimite = diasLimite * 24 * 60 * 60 * 1000;
-  return (new Date() - fechaPost) > milisegundosLimite;
+const esPostulacionAbandonada = (fechaCierreOferta, diasLimite = DIAS_ABANDONO_POSTULACION) => {
+  const fechaLimite = obtenerFechaCorteAbandono(fechaCierreOferta, diasLimite);
+  return Boolean(fechaLimite && new Date() > fechaLimite);
 };
 
 /**
- * Calcula la fecha de corte límite para consultas SQL de abandono
+ * Calculates the decision deadline from the offer close date.
  * @param {number} diasLimite 
  * @returns {Date}
  */
-const obtenerFechaCorteAbandono = (diasLimite = DIAS_ABANDONO_POSTULACION) => {
-  const corte = new Date();
-  corte.setDate(corte.getDate() - diasLimite);
+const obtenerFechaCorteAbandono = (fechaCierreOferta, diasLimite = DIAS_ABANDONO_POSTULACION) => {
+  if (!fechaCierreOferta) return null;
+  const corte = new Date(fechaCierreOferta);
+  if (Number.isNaN(corte.getTime())) return null;
+  corte.setHours(23, 59, 59, 999);
+  corte.setDate(corte.getDate() + diasLimite);
   return corte;
 };
 

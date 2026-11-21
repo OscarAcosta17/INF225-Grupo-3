@@ -287,9 +287,9 @@ export default function Perfil() {
                       </div>
                       <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                         <span style={{ 
-                          backgroundColor: post.estado === 'Pendiente' ? '#fefcbf' : '#dcfce7',
-                          color: post.estado === 'Pendiente' ? '#744210' : '#166534',
-                          border: `1px solid ${post.estado === 'Pendiente' ? '#fde047' : '#bbf7d0'}`,
+                          backgroundColor: post.estado === 'Pendiente' ? '#fefcbf' : ['No válida: oferta vencida', 'Sin respuesta oferta caducada'].includes(post.estado) ? '#fee2e2' : '#dcfce7',
+                          color: post.estado === 'Pendiente' ? '#744210' : ['No válida: oferta vencida', 'Sin respuesta oferta caducada'].includes(post.estado) ? '#991b1b' : '#166534',
+                          border: `1px solid ${post.estado === 'Pendiente' ? '#fde047' : ['No válida: oferta vencida', 'Sin respuesta oferta caducada'].includes(post.estado) ? '#fecaca' : '#bbf7d0'}`,
                           padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'
                         }}>
                           {post.estado}
