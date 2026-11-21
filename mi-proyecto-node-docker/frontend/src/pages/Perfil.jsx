@@ -9,6 +9,30 @@ const IconCheckCircle = () => <svg width="16" height="16" viewBox="0 0 24 24" fi
 const IconClock = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
 const IconUser = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
 
+const ESTADOS_POSTULACION_NEGATIVOS = new Set([
+  'Rechazado',
+  'Rechazada',
+  'No válida: oferta vencida',
+  'Sin respuesta oferta caducada',
+  'Sin respuesta'
+]);
+
+const ESTADOS_POSTULACION_ACEPTADOS = new Set(['Aceptado', 'Aceptada']);
+
+/** Devuelve la paleta visual del badge según el estado de la postulación. */
+const obtenerEstiloEstadoPostulacion = (estado) => {
+  if (estado === 'Pendiente') {
+    return { backgroundColor: '#fefcbf', color: '#744210', borderColor: '#fde047' };
+  }
+  if (ESTADOS_POSTULACION_NEGATIVOS.has(estado)) {
+    return { backgroundColor: '#fee2e2', color: '#991b1b', borderColor: '#fecaca' };
+  }
+  if (ESTADOS_POSTULACION_ACEPTADOS.has(estado)) {
+    return { backgroundColor: '#dcfce7', color: '#166534', borderColor: '#bbf7d0' };
+  }
+  return { backgroundColor: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' };
+};
+
 export default function Perfil() {
   const navigate = useNavigate();
   
@@ -279,7 +303,9 @@ export default function Perfil() {
             <div className="history-scroll" style={{ flex: 1, padding: '30px', overflowY: 'auto', backgroundColor: '#f8fafc' }}>
               {misPostulaciones.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {misPostulaciones.map((post) => (
+                  {misPostulaciones.map((post) => {
+                    const estiloEstado = obtenerEstiloEstadoPostulacion(post.estado);
+                    return (
                     <div key={post.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                       <div>
                         <h4 style={{ margin: '0 0 6px 0', color: '#0f172a', fontSize: '1.1rem', fontWeight: '700' }}>{post.titulo}</h4>
@@ -287,9 +313,9 @@ export default function Perfil() {
                       </div>
                       <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                         <span style={{ 
-                          backgroundColor: post.estado === 'Pendiente' ? '#fefcbf' : ['No válida: oferta vencida', 'Sin respuesta oferta caducada'].includes(post.estado) ? '#fee2e2' : '#dcfce7',
-                          color: post.estado === 'Pendiente' ? '#744210' : ['No válida: oferta vencida', 'Sin respuesta oferta caducada'].includes(post.estado) ? '#991b1b' : '#166534',
-                          border: `1px solid ${post.estado === 'Pendiente' ? '#fde047' : ['No válida: oferta vencida', 'Sin respuesta oferta caducada'].includes(post.estado) ? '#fecaca' : '#bbf7d0'}`,
+                          backgroundColor: estiloEstado.backgroundColor,
+                          color: estiloEstado.color,
+                          border: `1px solid ${estiloEstado.borderColor}`,
                           padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'
                         }}>
                           {post.estado}
@@ -299,7 +325,8 @@ export default function Perfil() {
                         </span>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: '60px 20px' }}>

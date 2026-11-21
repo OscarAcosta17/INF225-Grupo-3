@@ -1,12 +1,19 @@
 const nodemailer = require('nodemailer');
 
-const REMITENTE = '"ChambaHub" <chambahub.usm@gmail.com>';
+const EMAIL_USER = process.env.EMAIL_USER || 'chambahub.usm@gmail.com';
+const EMAIL_PASS = process.env.EMAIL_PASS || 'lxmd gbtv wuuy pwyk';
+const REMITENTE = `"ChambaHub" <${EMAIL_USER}>`;
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'chambahub.usm@gmail.com',
-    pass: 'lxmd gbtv wuuy pwyk'
-  }
+    user: EMAIL_USER,
+    pass: EMAIL_PASS
+  },
+  // Evita que la petición HTTP quede bloqueada si el entorno (ej. Render Free) restringe SMTP
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 10000
 });
 
 const enviarNotificacionDecision = async ({ correo, nombreEstudiante, tituloOferta, estado }) => {

@@ -396,7 +396,7 @@ const obtenerMetricasRecomendacion = async (req, res) => {
     }).length;
 
     // 6. Prueba caso borde: estudiante sin competencias
-    const pruebaVaciaResult = await pool.query(queryRecomendaciones, [[]]);
+    const pruebaVaciaResult = await pool.query(queryRecomendaciones, [[], ZONA_HORARIA]);
     const pruebaPerfilSinCompetenciasExitosa = pruebaVaciaResult.rows.length === totalVigentes &&
       pruebaVaciaResult.rows.every(o => o.coincidencia === 0.0);
 
