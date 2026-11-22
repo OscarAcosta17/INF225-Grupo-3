@@ -126,6 +126,64 @@ const createTables = async () => {
         fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT unq_estudiante_fecha UNIQUE (estudiante_id, fecha)
     );
+
+    -- 9. Tabla de Trámites de Práctica y Convalidación
+    CREATE TABLE IF NOT EXISTS tramites_convalidacion (
+        id SERIAL PRIMARY KEY,
+        estudiante_id INTEGER NOT NULL REFERENCES estudiantes(id) ON DELETE CASCADE,
+        tipo_flujo VARCHAR(30) NOT NULL, -- 'practica_nueva' (Flujo A) | 'convalidacion' (Flujo B)
+        tipo_practica VARCHAR(30) NOT NULL, -- 'industrial' | 'profesional'
+        tipo_experiencia VARCHAR(50), -- Solo Flujo B: 'trabajo_profesional' | 'practica_investigativa' | 'trabajo_social' | 'emprendimiento'
+        empresa_nombre VARCHAR(150) NOT NULL,
+        empresa_rut VARCHAR(20),
+        empresa_direccion VARCHAR(255) NOT NULL,
+        empresa_unica BOOLEAN DEFAULT TRUE, -- Validación Flujo B
+        supervisor_nombre VARCHAR(150) NOT NULL,
+        supervisor_correo VARCHAR(120) NOT NULL,
+        supervisor_telefono VARCHAR(30) NOT NULL,
+        modalidad VARCHAR(30) NOT NULL, -- 'Presencial' | 'Hibrido' | 'Remoto'
+        fecha_inicio DATE NOT NULL,
+        fecha_fin DATE NOT NULL,
+        horas_comprometidas INTEGER DEFAULT 360, -- Horas exigidas por la práctica
+        meses_a_convalidar NUMERIC(4, 1), -- Solo Flujo B (para validar regla del triple)
+        meses_experiencia_real NUMERIC(4, 1), -- Solo Flujo B
+        pdf_actividades_path VARCHAR(255), -- Flujo B: PDF de actividades realizadas
+        pdf_informe_final_path VARCHAR(255), -- Flujo A: Informe final al terminar práctica
+        resumen_bitacora_json JSONB, -- Snapshot de horas y actividades RS12 al entregar informe final
+        estado VARCHAR(60) DEFAULT 'Pendiente de confirmación del supervisor',
+        tiempo_estimado_dias INTEGER DEFAULT 10,
+        acta_numero VARCHAR(50),
+        acta_detalle TEXT,
+        observaciones_encargado TEXT,
+        fecha_resolucion TIMESTAMP,
+        apelacion_motivo TEXT,
+        apelacion_pdf_path VARCHAR(255),
+        apelacion_estado VARCHAR(30), -- NULL | 'En revisión' | 'Resuelta'
+        apelacion_resolucion TEXT,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 10. Tabla de Evaluación del Supervisor
+    CREATE TABLE IF NOT EXISTS evaluaciones_supervisor (
+        id SERIAL PRIMARY KEY,
+        tramite_id INTEGER UNIQUE NOT NULL REFERENCES tramites_convalidacion(id) ON DELETE CASCADE,
+        resumen_tareas TEXT NOT NULL,
+        observaciones TEXT,
+
+        capacidad INTEGER CHECK (capacidad BETWEEN 1 AND 5),
+        confianza INTEGER CHECK (confianza BETWEEN 1 AND 5),
+        aplicacion_esfuerzo INTEGER CHECK (aplicacion_esfuerzo BETWEEN 1 AND 5),
+        adaptabilidad INTEGER CHECK (adaptabilidad BETWEEN 1 AND 5),
+        iniciativa INTEGER CHECK (iniciativa BETWEEN 1 AND 5),
+        trabajo_equipo INTEGER CHECK (trabajo_equipo BETWEEN 1 AND 5),
+        conocimientos INTEGER CHECK (conocimientos BETWEEN 1 AND 5),
+        asistencia_puntualidad INTEGER CHECK (asistencia_puntualidad BETWEEN 1 AND 5),
+        resultados INTEGER CHECK (resultados BETWEEN 1 AND 5),
+        comunicacion_efectiva INTEGER CHECK (comunicacion_efectiva BETWEEN 1 AND 5),
+        manejo_tic INTEGER CHECK (manejo_tic BETWEEN 1 AND 5),
+        fecha_evaluacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   
 
 
@@ -253,6 +311,22 @@ const createTables = async () => {
       SELECT setval('usuarios_id_seq', (SELECT MAX(id) FROM usuarios));
       SELECT setval('empresas_id_seq', (SELECT MAX(id) FROM empresas));
       SELECT setval('bitacoras_id_seq', (SELECT COALESCE(MAX(id), 1) FROM bitacoras));
+      INSERT INTO tramites_convalidacion (
+        id, estudiante_id, tipo_flujo, tipo_practica,
+        empresa_nombre, empresa_rut, empresa_direccion,
+        supervisor_nombre, supervisor_correo, supervisor_telefono,
+        modalidad, fecha_inicio, fecha_fin, horas_comprometidas, estado
+        ) VALUES (
+        1, 1, 'practica_nueva', 'industrial',
+        'TechCorp', '76.123.456-7', 'Av. Vicuña Mackenna 3939, Santiago',
+        'Carlos Ruiz', 'supervisor@tech.com', '+56 9 8765 4321',
+        'Hibrido', '2026-11-01', '2027-02-28', 360, 'Práctica confirmada / en curso'
+        ) ON CONFLICT (id) DO NOTHING;
+
+        SELECT setval('tramites_convalidacion_id_seq', (SELECT COALESCE(MAX(id), 1) FROM tramites_convalidacion));
+
+
+        
     `);
     console.log("Datos de prueba completos cargados exitosamente.");
 

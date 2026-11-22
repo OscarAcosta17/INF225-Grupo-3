@@ -8,6 +8,7 @@ const IconLogOut = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="n
 const IconCheckCircle = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
 const IconClock = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
 const IconUser = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+const IconFileCheck = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m9 15 2 2 4-4"></path></svg>;
 
 const ESTADOS_POSTULACION_NEGATIVOS = new Set([
   'Rechazado',
@@ -47,6 +48,8 @@ export default function Perfil() {
     const saved = sessionStorage.getItem('perfil_postulaciones');
     return saved ? JSON.parse(saved) : [];
   });
+
+  const [tienePracticaVigente, setTienePracticaVigente] = useState(false);
   
   const usuarioLocal = JSON.parse(localStorage.getItem('usuario'));
 
@@ -82,6 +85,19 @@ export default function Perfil() {
           const data = await resPost.json();
           setMisPostulaciones(data);
           sessionStorage.setItem('perfil_postulaciones', JSON.stringify(data));
+        }
+
+        // Verificar si tiene práctica nueva vigente para habilitar bitácora
+        const resConv = await fetch(apiUrl(`/api/convalidacion/estudiante/${usuarioLocal.id}`));
+        if (resConv.ok) {
+          const dataConv = await resConv.json();
+          const tieneRegistros = (dataConv.bitacora_actual?.dias_registrados || 0) > 0;
+          const practicaHabilitada = (dataConv.tramites || []).some(
+            (t) =>
+              t.tipo_flujo === 'practica_nueva' &&
+              (t.estado === 'Práctica confirmada / en curso' || Boolean(t.pdf_informe_final_path))
+          );
+          setTienePracticaVigente(practicaHabilitada || tieneRegistros);
         }
       } catch (error) {
         console.error("Error al cargar los datos:", error);
@@ -176,20 +192,45 @@ export default function Perfil() {
           <div className="header-actions">
             <button 
               onClick={() => navigate('/configurar-perfil')} 
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'white', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s' }}
-              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#eff6ff'; }}
-              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s' }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.borderColor = '#94a3b8'; }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
             >
               <IconEdit /> Editar Perfil
             </button>
-                        <button 
+
+            <button 
+              onClick={() => navigate('/convalidacion')} 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s' }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#dbeafe'; }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#eff6ff'; }}
+            >
+              <IconFileCheck /> Práctica y Convalidación
+            </button>
+
+            <button 
               onClick={() => navigate('/bitacora')} 
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.2)' }}
-              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#1e293b'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              disabled={!tienePracticaVigente}
+              title={!tienePracticaVigente ? 'Disponible solo cuando tengas una práctica nueva confirmada y en curso' : 'Registrar jornadas diarias'}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '10px 16px', 
+                backgroundColor: tienePracticaVigente ? '#1e293b' : '#f1f5f9', 
+                color: tienePracticaVigente ? 'white' : '#94a3b8', 
+                border: tienePracticaVigente ? 'none' : '1px solid #e2e8f0', 
+                borderRadius: '8px', 
+                cursor: tienePracticaVigente ? 'pointer' : 'not-allowed', 
+                fontWeight: '600', 
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => { if (tienePracticaVigente) { e.currentTarget.style.backgroundColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+              onMouseOut={(e) => { if (tienePracticaVigente) { e.currentTarget.style.backgroundColor = '#1e293b'; e.currentTarget.style.transform = 'translateY(0)'; } }}
             >
               <IconClock /> Mi Bitácora Diaria
             </button>
+
             <button 
               onClick={() => navigate('/ver-ofertas')} 
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2)' }}
@@ -198,6 +239,7 @@ export default function Perfil() {
             >
               <IconSearch /> Explorar Ofertas
             </button>
+
             <button 
               onClick={manejarCerrarSesion} 
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'transparent', color: '#ef4444', border: '1px solid transparent', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s' }}

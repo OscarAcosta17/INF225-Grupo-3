@@ -19,14 +19,18 @@ const postulacionesRoutes = require('./src/routes/postulaciones');
 const ofertasRoutes = require('./src/routes/ofertas');
 const bitacoraRoutes = require('./src/routes/bitacora');
 const { iniciarServicioCaducidad } = require('./src/services/caducidadService');
+const convalidacionRoutes = require('./src/routes/convalidacion');
+
 
 // (configuraciones generales)
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public')); 
 
+
 // CARPETA DE UPLOADS PÚBLICAMENTE PARA LOS PDFs
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+app.use('/api/convalidacion', convalidacionRoutes);
 
 // 3. Definición de las apis
 app.use('/api/competencias', competenciasRoutes);

@@ -16,6 +16,7 @@ export default function Bitacora() {
   const navigate = useNavigate();
   const usuario = JSON.parse(localStorage.getItem('usuario'));
 
+  const [practicaVigente, setPracticaVigente] = useState(null);
   const [bitacoras, setBitacoras] = useState([]);
   const [totalHoras, setTotalHoras] = useState(0);
   const [totalDias, setTotalDias] = useState(0);
@@ -64,6 +65,7 @@ export default function Bitacora() {
         setBitacoras(data.bitacoras || []);
         setTotalHoras(data.total_horas || 0);
         setTotalDias(data.total_dias || 0);
+        setPracticaVigente(data.practica_vigente || null);
       }
     } catch (err) {
       console.error("Error cargando bitácoras:", err);
@@ -261,7 +263,8 @@ export default function Bitacora() {
   };
 
   const celdasCalendario = generarDiasCalendario();
-  const porcentajeAvance = Math.min(100, Math.round((totalHoras / 360) * 100));
+  const metaHoras = practicaVigente?.horas_comprometidas || 360;
+  const porcentajeAvance = Math.min(100, Math.round((totalHoras / metaHoras) * 100));
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', paddingBottom: '60px' }}>
@@ -331,23 +334,37 @@ export default function Bitacora() {
 
       {/* Contenido Principal */}
       <main className="no-print" style={{ maxWidth: '1200px', margin: '24px auto', padding: '0 20px' }}>
-        
+
+        {!loading && !practicaVigente && (
+          <div style={{ padding: '16px 20px', backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: '12px', color: '#92400e', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <strong>Bitácora en modo solo lectura:</strong> Solo puedes registrar o editar jornadas cuando tienes una <strong>Práctica Nueva</strong> confirmada por tu supervisor y en curso.
+            </div>
+            <button
+              onClick={() => navigate('/convalidacion')}
+              style={{ padding: '8px 16px', backgroundColor: '#d97706', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+            >
+              Revisar estado de práctica
+            </button>
+          </div>
+        )}
+            
         {/* Barra de Avance Semestral */}
         <div style={{ backgroundColor: 'white', borderRadius: '14px', padding: '18px 24px', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
             <div>
-              <span style={{ fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.5px' }}>Horas Acumuladas</span>
+              <span style={{ fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', color: '#3b82f6', letterSpacing: '0.5px' }}>Horas Acumuladas</span>
               <h2 style={{ margin: '4px 0 0', fontSize: '1.8rem', color: '#0f172a', fontWeight: '800' }}>
-                {totalHoras} <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: '500' }}>/ 360 horas</span>
+                {totalHoras} <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: '500' }}>/ {metaHoras} horas</span>
               </h2>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: '1.6rem', fontWeight: '800', color: porcentajeAvance >= 100 ? '#10b981' : '#2563eb' }}>{porcentajeAvance}%</span>
+              <span style={{ fontSize: '1.6rem', fontWeight: '800', color: porcentajeAvance >= 100 ? '#10b981' : '#3b82f6' }}>{porcentajeAvance}%</span>
               <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>{totalDias} días registrados</p>
             </div>
           </div>
           <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', marginTop: '12px' }}>
-            <div style={{ width: `${porcentajeAvance}%`, height: '100%', backgroundColor: porcentajeAvance >= 100 ? '#10b981' : '#2563eb', transition: 'width 0.4s ease' }} />
+            <div style={{ width: `${porcentajeAvance}%`, height: '100%', backgroundColor: porcentajeAvance >= 100 ? '#10b981' : '#3b82f6', transition: 'width 0.4s ease' }} />
           </div>
         </div>
 
@@ -361,9 +378,9 @@ export default function Bitacora() {
             <div style={{ backgroundColor: 'white', borderRadius: '16px', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
               
               {/* Cabecera del Calendario con Fecha Seleccionada */}
-              <div style={{ backgroundColor: '#2563eb', padding: '18px 20px', color: 'white' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '600', opacity: 0.9 }}>{infoFechaActual.anio}</div>
-                <div style={{ fontSize: '1.7rem', fontWeight: '800', textTransform: 'lowercase', marginTop: '2px' }}>
+              <div style={{ backgroundColor: '#3b82f6', padding: '18px 20px', color: 'white' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: '600', opacity: 0.95, color: 'white' }}>{infoFechaActual.anio}</div>
+                <div style={{ fontSize: '1.7rem', fontWeight: '800', textTransform: 'lowercase', marginTop: '2px', color: 'white' }}>
                   {infoFechaActual.cabeceraCorta}
                 </div>
               </div>
@@ -402,7 +419,7 @@ export default function Bitacora() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', padding: '6px 14px 18px', textAlign: 'center' }}>
                 {celdasCalendario.map(c => {
                   if (c.tipo === 'vacio') {
-                    return <div key={c.key} style={{ height: '38px' }} />;
+                    return <div key={c.key} style={{ height: '36px' }} />;
                   }
 
                   const tieneRegistro = Boolean(c.registro);
@@ -412,14 +429,17 @@ export default function Bitacora() {
                       key={c.key}
                       onClick={() => setFechaSeleccionada(c.fechaStr)}
                       style={{
-                        height: '38px',
+                        width: '36px',
+                        height: '36px',
+                        padding: 0,
+                        margin: '0 auto',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: c.esSeleccionado ? '#2563eb' : (c.esHoy ? '#eff6ff' : 'transparent'),
-                        color: c.esSeleccionado ? 'white' : (c.esHoy ? '#2563eb' : '#1e293b'),
-                        border: c.esHoy && !c.esSeleccionado ? '1.5px solid #2563eb' : 'none',
+                        backgroundColor: c.esSeleccionado ? '#3b82f6' : (c.esHoy ? '#eff6ff' : 'transparent'),
+                        color: c.esSeleccionado ? 'white' : (c.esHoy ? '#3b82f6' : '#1e293b'),
+                        border: c.esHoy && !c.esSeleccionado ? '1.5px solid #3b82f6' : 'none',
                         borderRadius: '50%',
                         cursor: 'pointer',
                         fontWeight: c.esSeleccionado || tieneRegistro || c.esHoy ? '700' : '500',
@@ -457,7 +477,7 @@ export default function Bitacora() {
                 width: '100%',
                 marginTop: '16px',
                 padding: '13px',
-                backgroundColor: '#2563eb',
+                backgroundColor: '#3b82f6',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
@@ -468,11 +488,11 @@ export default function Bitacora() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: '0 3px 8px rgba(37,99,235,0.25)',
+                boxShadow: '0 3px 8px rgba(59, 130, 246, 0.25)',
                 transition: 'all 0.2s'
               }}
-              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#1d4ed8'; }}
-              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#2563eb'; }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#2563eb'; }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#3b82f6'; }}
             >
               <IconPrinter /> DESCARGAR BITÁCORAS EN PDF
             </button>
@@ -484,8 +504,8 @@ export default function Bitacora() {
           <div style={{ backgroundColor: 'white', borderRadius: '16px', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
             
             {/* Banner de Cabecera */}
-            <div style={{ backgroundColor: '#2563eb', padding: '16px 24px', color: 'white' }}>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>
+            <div style={{ backgroundColor: '#3b82f6', padding: '16px 24px', color: 'white' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'white' }}>
                 {infoFechaActual.cabeceraCompleta}
               </h3>
             </div>
@@ -524,24 +544,28 @@ export default function Bitacora() {
 
                   {/* Botones de Acción */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
-                    <button
-                      onClick={handleEliminar}
-                      style={{ padding: '9px 16px', backgroundColor: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '8px', fontWeight: '600', fontSize: '0.88rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <IconTrash /> Eliminar Registro
-                    </button>
-                    <button
-                      onClick={() => handleAbrirEditar(entradaActual)}
-                      style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(37,99,235,0.2)' }}
-                    >
-                      <IconEdit /> Modificar Entrada
-                    </button>
+                    {practicaVigente && (  
+                      <button
+                        onClick={handleEliminar}
+                        style={{ padding: '9px 16px', backgroundColor: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '8px', fontWeight: '600', fontSize: '0.88rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <IconTrash /> Eliminar Registro
+                      </button>
+                    )}
+                    {practicaVigente && ( 
+                      <button
+                        onClick={() => handleAbrirEditar(entradaActual)}
+                        style={{ padding: '10px 20px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(59, 130, 246, 0.2)' }}
+                      >
+                        <IconEdit /> Modificar Entrada
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
                 /* Estado cuando el día no tiene registro */
                 <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                  <div style={{ width: '56px', height: '56px', backgroundColor: '#eff6ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#2563eb' }}>
+                  <div style={{ width: '56px', height: '56px', backgroundColor: '#eff6ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#3b82f6' }}>
                     <IconClock />
                   </div>
                   <h4 style={{ margin: '0 0 6px', fontSize: '1.15rem', color: '#0f172a', fontWeight: '700' }}>
@@ -550,12 +574,14 @@ export default function Bitacora() {
                   <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '0.9rem' }}>
                     No hay actividades anotadas para el {infoFechaActual.cabeceraCorta}.
                   </p>
-                  <button
-                    onClick={handleAbrirCrear}
-                    style={{ padding: '11px 24px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
-                  >
-                    <IconPlus /> Registrar Actividades para este Día
-                  </button>
+                  {practicaVigente && fechaSeleccionada >= practicaVigente.fecha_inicio && fechaSeleccionada <= practicaVigente.fecha_fin && (
+                    <button
+                      onClick={handleAbrirCrear}
+                      style={{ padding: '11px 24px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 3px 8px rgba(59, 130, 246, 0.25)' }}
+                    >
+                      <IconPlus /> Registrar Actividades para este Día
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -575,7 +601,7 @@ export default function Bitacora() {
                 <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: '800' }}>
                   {modoEdicion ? 'Editar Jornada Trabajada' : 'Registrar Jornada de Práctica'}
                 </h3>
-                <p style={{ margin: '4px 0 0', color: '#2563eb', fontWeight: '700', fontSize: '0.88rem' }}>
+                <p style={{ margin: '4px 0 0', color: '#3b82f6', fontWeight: '700', fontSize: '0.88rem' }}>
                   Fecha seleccionada: {form.fecha}
                 </p>
               </div>
@@ -663,7 +689,7 @@ export default function Bitacora() {
                 <button
                   type="submit"
                   disabled={guardando}
-                  style={{ padding: '10px 22px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ padding: '10px 22px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <IconCheck /> {guardando ? 'Guardando...' : (modoEdicion ? 'Actualizar Jornada' : 'Guardar Jornada')}
                 </button>

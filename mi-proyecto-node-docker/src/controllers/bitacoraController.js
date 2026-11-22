@@ -1,5 +1,22 @@
 const pool = require('../../db');
 
+//Verifica si el estudiante tiene una práctica nueva confirmada y vigente
+const obtenerPracticaVigente = async (estudianteId) => {
+  const res = await pool.query(
+    `SELECT id, tipo_flujo, tipo_practica, empresa_nombre, estado,
+            horas_comprometidas,
+            TO_CHAR(fecha_inicio, 'YYYY-MM-DD') AS fecha_inicio,
+            TO_CHAR(fecha_fin, 'YYYY-MM-DD') AS fecha_fin
+     FROM tramites_convalidacion
+     WHERE estudiante_id = $1
+       AND tipo_flujo = 'practica_nueva'
+       AND estado = 'Práctica confirmada / en curso'
+     ORDER BY fecha_creacion DESC
+     LIMIT 1`,
+    [estudianteId]
+  );
+  return res.rows[0] || null;
+};
 
 //Calcula horas trabajadas a partir de la hora de inicio y la hora de término.
 
@@ -34,6 +51,7 @@ const calcularHorasTrabajadas = (inicio, fin) => {
 
 
 const crearBitacora = async (req, res) => {
+  
   const { estudiante_id, fecha, hora_inicio, hora_fin, actividades, actividades_pendientes, observaciones } = req.body;
 
   if (!estudiante_id) {
@@ -42,6 +60,19 @@ const crearBitacora = async (req, res) => {
 
   if (!fecha || !fecha.trim()) {
     return res.status(400).json({ error: 'La fecha del día trabajado es obligatoria.' });
+  }
+
+  const practicaVigente = await obtenerPracticaVigente(estudiante_id);
+  if (!practicaVigente) {
+    return res.status(403).json({
+      error: 'La bitácora solo está disponible cuando tienes una práctica nueva confirmada por tu supervisor y en curso.'
+    });
+  }
+
+  if (fecha < practicaVigente.fecha_inicio || fecha > practicaVigente.fecha_fin) {
+    return res.status(400).json({
+      error: `La fecha debe corresponder a un día válido dentro del período de tu práctica (${practicaVigente.fecha_inicio} al ${practicaVigente.fecha_fin}).`
+    });
   }
 
   if (!actividades || !actividades.trim()) {
@@ -114,11 +145,15 @@ const obtenerBitacorasEstudiante = async (req, res) => {
 
     const totalHoras = result.rows.reduce((acc, row) => acc + Number(row.horas_trabajadas), 0);
 
+    const practicaVigente = await obtenerPracticaVigente(estudianteId);
+
     res.json({
+      practica_vigente: practicaVigente,
       total_horas: Number(totalHoras.toFixed(2)),
       total_dias: result.rows.length,
       bitacoras: result.rows
     });
+
   } catch (error) {
     console.error('Error al obtener bitácoras:', error);
     res.status(500).json({ error: 'Error al obtener los registros de bitácora.' });
@@ -149,6 +184,13 @@ const actualizarBitacora = async (req, res) => {
 
     if (Number(check.rows[0].estudiante_id) !== Number(estudiante_id)) {
       return res.status(403).json({ error: 'Acceso Denegado (403): No tienes permiso para editar bitácoras de otra persona.' });
+    }
+
+    const practicaVigente = await obtenerPracticaVigente(estudiante_id);
+    if (!practicaVigente) {
+      return res.status(403).json({
+        error: 'No puedes modificar o eliminar jornadas porque tu proceso de práctica no está vigente.'
+      });
     }
 
     const result = await pool.query(
@@ -191,6 +233,13 @@ const eliminarBitacora = async (req, res) => {
 
     if (Number(check.rows[0].estudiante_id) !== Number(estudiante_id)) {
       return res.status(403).json({ error: 'Acceso Denegado (403): No tienes permiso para eliminar este registro.' });
+    }
+
+    const practicaVigente = await obtenerPracticaVigente(estudiante_id);
+    if (!practicaVigente) {
+      return res.status(403).json({
+        error: 'No puedes modificar o eliminar jornadas porque tu proceso de práctica no está vigente.'
+      });
     }
 
     await pool.query('DELETE FROM bitacoras WHERE id = $1', [id]);
