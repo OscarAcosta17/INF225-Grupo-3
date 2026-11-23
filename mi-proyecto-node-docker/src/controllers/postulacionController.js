@@ -67,6 +67,16 @@ const obtenerPostulacionesPorOferta = async (req, res) => {
     }
 };
 
+const obtenerPostulacionesPorEmpresa = async (req, res) => {
+    try {
+        const { empresaId } = req.params;
+        const postulaciones = await PostulacionService.obtenerPostulacionesPorEmpresa(empresaId);
+        return res.json(postulaciones);
+    } catch (error) {
+        return res.status(500).json({ error: 'Error al obtener postulaciones de la empresa' });
+    }
+};
+
 const decidirPostulacion = async (req, res) => {
     try {
         const { postulacionId } = req.params;
@@ -98,4 +108,4 @@ const obtenerPostulacionesPorEstudiante = async (req, res) => {
     }
 };
 
-module.exports = { crearPostulacion, obtenerPostulacionesPorEstudiante, obtenerPostulacionesPorOferta, decidirPostulacion };
+module.exports = { crearPostulacion, obtenerPostulacionesPorEstudiante, obtenerPostulacionesPorOferta, obtenerPostulacionesPorEmpresa, decidirPostulacion };

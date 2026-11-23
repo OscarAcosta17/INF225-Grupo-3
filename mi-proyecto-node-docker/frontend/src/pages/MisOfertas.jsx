@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiUrl, getFileUrl } from '../config/api';
 
@@ -11,9 +11,75 @@ const IconMoney = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="no
 const IconClock = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
 const IconCalendar = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>;
 const IconBriefcase = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>;
+const IconUsers = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>;
+const IconAlertTriangle = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>;
+const IconCheckCircle = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+const IconChevronDown = ({ rotated }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ transform: rotated ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+  >
+    <polyline points="6 9 12 15 18 9"></polyline>
+  </svg>
+);
+
+const obtenerSoloFechaISO = (fechaStr) => {
+  if (!fechaStr) return '';
+  const texto = String(fechaStr).trim();
+  const match = texto.match(/^\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : '';
+};
+
+const formatearFechaSoloDia = (fechaStr) => {
+  const iso = obtenerSoloFechaISO(fechaStr);
+  if (!iso) return 'Sin fecha';
+  const [anio, mes, dia] = iso.split('-');
+  return `${dia}/${mes}/${anio}`;
+};
+
+const obtenerHoyChileISO = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
+
+const esFechaVencida = (fechaStr) => {
+  const iso = obtenerSoloFechaISO(fechaStr);
+  return Boolean(iso && iso < obtenerHoyChileISO());
+};
+
+const esOfertaCaducada = (oferta) => Boolean(oferta && (oferta.activa === false || esFechaVencida(oferta.fecha_cierre)));
+
+const esPostulacionCaducada = (post) => Boolean(
+  post && (
+    post.estado === 'Sin respuesta oferta caducada' ||
+    post.estado === 'No válida: oferta vencida' ||
+    (post.estado === 'Pendiente' && post.puede_decidir === false)
+  )
+);
+
+const obtenerEstiloEstadoPost = (estado) => {
+  if (estado === 'Aceptado' || estado === 'Aceptada') {
+    return { bg: '#dcfce7', color: '#166534', border: '#bbf7d0' };
+  }
+  if (estado === 'Rechazado' || estado === 'Rechazada') {
+    return { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' };
+  }
+  if (estado === 'Pendiente') {
+    return { bg: '#fef3c7', color: '#92400e', border: '#fde68a' };
+  }
+  return { bg: '#ffedd5', color: '#9a3412', border: '#fed7aa' };
+};
 
 export default function MisOfertas() {
   const [ofertas, setOfertas] = useState([]);
+  const [postulacionesEmpresa, setPostulacionesEmpresa] = useState([]);
+  const [cargandoResumen, setCargandoResumen] = useState(true);
+  const [bloqueActivo, setBloqueActivo] = useState(null);
+  const [filtroPostulaciones, setFiltroPostulaciones] = useState('todas');
   const [ofertaPostulantes, setOfertaPostulantes] = useState(null);
   const [postulantes, setPostulantes] = useState([]);
   const [cargandoPostulantes, setCargandoPostulantes] = useState(false);
@@ -28,10 +94,24 @@ export default function MisOfertas() {
       return;
     }
 
-    fetch(apiUrl(`/api/ofertas?empresa_id=${usuario.id}`))
-      .then(res => res.json())
-      .then(data => setOfertas(data))
-      .catch(err => console.error(err));
+    let activo = true;
+
+    Promise.all([
+      fetch(apiUrl(`/api/ofertas?empresa_id=${usuario.id}`)).then(res => res.json()).catch(() => []),
+      fetch(apiUrl(`/api/postulaciones/empresa/${usuario.id}`)).then(res => (res.ok ? res.json() : [])).catch(() => [])
+    ])
+      .then(([ofertasData, postulacionesData]) => {
+        if (!activo) return;
+        setOfertas(Array.isArray(ofertasData) ? ofertasData : []);
+        setPostulacionesEmpresa(Array.isArray(postulacionesData) ? postulacionesData : []);
+      })
+      .finally(() => {
+        if (activo) setCargandoResumen(false);
+      });
+
+    return () => {
+      activo = false;
+    };
   }, [usuario, navigate]);
 
   const handleLogout = () => {
@@ -76,7 +156,10 @@ export default function MisOfertas() {
       }
 
       setPostulantes(actuales => actuales.map(item =>
-        item.id === postulante.id ? { ...item, estado: data.data.estado } : item
+        item.id === postulante.id ? { ...item, estado: data.data.estado, puede_decidir: false } : item
+      ));
+      setPostulacionesEmpresa(actuales => actuales.map(item =>
+        item.id === postulante.id ? { ...item, estado: data.data.estado, puede_decidir: false } : item
       ));
       if (data.advertencia) {
         window.alert(data.advertencia);
@@ -91,6 +174,20 @@ export default function MisOfertas() {
     } finally {
       setPostulacionEnProceso(null);
     }
+  };
+
+  const postulacionesPendientes = postulacionesEmpresa.filter(p => p.estado === 'Pendiente' && p.puede_decidir !== false);
+  const ofertasConPostulantes = new Set(postulacionesEmpresa.map(p => p.oferta_id)).size;
+  const ofertasCaducadas = ofertas.filter(esOfertaCaducada);
+  const postulacionesCaducadas = postulacionesEmpresa.filter(esPostulacionCaducada);
+  const totalCaducado = ofertasCaducadas.length + postulacionesCaducadas.length;
+  const postulacionesVisibles = filtroPostulaciones === 'pendientes'
+    ? postulacionesPendientes
+    : postulacionesEmpresa;
+
+  const abrirOfertaDesdeResumen = (ofertaId, tituloFallback) => {
+    const oferta = ofertas.find(o => o.id === ofertaId) || { id: ofertaId, titulo: tituloFallback };
+    verPostulantes(oferta);
   };
 
   return (
@@ -132,7 +229,356 @@ export default function MisOfertas() {
 
       {/* Contenedor Principal */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '35px 24px' }}>
-        
+
+        {/* Bloques interactivos de resumen superior */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: bloqueActivo ? '16px' : '28px' }}>
+          <button
+            type="button"
+            onClick={() => setBloqueActivo(prev => (prev === 'postulaciones' ? null : 'postulaciones'))}
+            aria-expanded={bloqueActivo === 'postulaciones'}
+            style={{
+              textAlign: 'left',
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '20px 22px',
+              border: bloqueActivo === 'postulaciones' ? '2px solid #2563eb' : '1px solid #e2e8f0',
+              boxShadow: bloqueActivo === 'postulaciones' ? '0 8px 20px -6px rgba(37, 99, 235, 0.2)' : '0 4px 6px -1px rgba(0,0,0,0.03)',
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '16px',
+              transition: 'all 0.2s'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                backgroundColor: postulacionesPendientes.length > 0 ? '#eff6ff' : '#f1f5f9',
+                color: postulacionesPendientes.length > 0 ? '#2563eb' : '#475569',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <IconUsers />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '1rem', fontWeight: '700', color: '#0f172a' }}>
+                    Postulaciones recibidas
+                  </span>
+                  <span style={{
+                    fontSize: '0.74rem',
+                    fontWeight: '700',
+                    padding: '3px 9px',
+                    borderRadius: '20px',
+                    backgroundColor: postulacionesPendientes.length > 0 ? '#fef3c7' : '#dcfce7',
+                    color: postulacionesPendientes.length > 0 ? '#92400e' : '#166534',
+                    border: `1px solid ${postulacionesPendientes.length > 0 ? '#fde68a' : '#bbf7d0'}`
+                  }}>
+                    {cargandoResumen
+                      ? 'Cargando...'
+                      : postulacionesPendientes.length > 0
+                        ? `${postulacionesPendientes.length} ${postulacionesPendientes.length === 1 ? 'pendiente' : 'pendientes'}`
+                        : 'Sin pendientes'}
+                  </span>
+                </div>
+                <p style={{ margin: '5px 0 0', fontSize: '0.86rem', color: '#64748b' }}>
+                  {cargandoResumen
+                    ? 'Consultando postulaciones...'
+                    : postulacionesEmpresa.length === 0
+                      ? 'Aún nadie ha postulado a tus ofertas'
+                      : `${postulacionesEmpresa.length} ${postulacionesEmpresa.length === 1 ? 'postulación' : 'postulaciones'} en ${ofertasConPostulantes} ${ofertasConPostulantes === 1 ? 'práctica' : 'prácticas'}`}
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontSize: '0.82rem', fontWeight: '700', flexShrink: 0 }}>
+              <span>{bloqueActivo === 'postulaciones' ? 'Ocultar' : 'Ver detalle'}</span>
+              <IconChevronDown rotated={bloqueActivo === 'postulaciones'} />
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setBloqueActivo(prev => (prev === 'caducidad' ? null : 'caducidad'))}
+            aria-expanded={bloqueActivo === 'caducidad'}
+            style={{
+              textAlign: 'left',
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '20px 22px',
+              border: bloqueActivo === 'caducidad' ? '2px solid #0f172a' : '1px solid #e2e8f0',
+              boxShadow: bloqueActivo === 'caducidad' ? '0 8px 20px -6px rgba(15, 23, 42, 0.16)' : '0 4px 6px -1px rgba(0,0,0,0.03)',
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '16px',
+              transition: 'all 0.2s'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                backgroundColor: totalCaducado > 0 ? '#fef2f2' : '#f0fdf4',
+                color: totalCaducado > 0 ? '#dc2626' : '#16a34a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                {totalCaducado > 0 ? <IconAlertTriangle /> : <IconCheckCircle />}
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '1rem', fontWeight: '700', color: '#0f172a' }}>
+                    Estado de caducidad
+                  </span>
+                  <span style={{
+                    fontSize: '0.74rem',
+                    fontWeight: '700',
+                    padding: '3px 9px',
+                    borderRadius: '20px',
+                    backgroundColor: totalCaducado > 0 ? '#fee2e2' : '#dcfce7',
+                    color: totalCaducado > 0 ? '#991b1b' : '#166534',
+                    border: `1px solid ${totalCaducado > 0 ? '#fecaca' : '#bbf7d0'}`
+                  }}>
+                    {cargandoResumen
+                      ? 'Cargando...'
+                      : totalCaducado > 0
+                        ? `${totalCaducado} ${totalCaducado === 1 ? 'alerta' : 'alertas'}`
+                        : 'Todo vigente'}
+                  </span>
+                </div>
+                <p style={{ margin: '5px 0 0', fontSize: '0.86rem', color: '#64748b' }}>
+                  {cargandoResumen
+                    ? 'Revisando vigencias...'
+                    : totalCaducado === 0
+                      ? 'No hay ofertas ni postulaciones caducadas'
+                      : `${ofertasCaducadas.length} ${ofertasCaducadas.length === 1 ? 'oferta caducada' : 'ofertas caducadas'} • ${postulacionesCaducadas.length} ${postulacionesCaducadas.length === 1 ? 'postulación vencida' : 'postulaciones vencidas'}`}
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '0.82rem', fontWeight: '700', flexShrink: 0 }}>
+              <span>{bloqueActivo === 'caducidad' ? 'Ocultar' : 'Ver detalle'}</span>
+              <IconChevronDown rotated={bloqueActivo === 'caducidad'} />
+            </div>
+          </button>
+        </div>
+
+        {/* Panel desplegable del bloque seleccionado */}
+        {bloqueActivo === 'postulaciones' && (
+          <section style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #cbd5e1', padding: '22px', marginBottom: '28px', boxShadow: '0 10px 25px -10px rgba(15, 23, 42, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
+              <div>
+                <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1.1rem', fontWeight: '800' }}>
+                  Quién ha postulado y a qué práctica
+                </h4>
+                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.85rem' }}>
+                  Haz clic en «Revisar» para abrir al postulante dentro de la oferta y aceptar o rechazar.
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setFiltroPostulaciones('todas')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    border: filtroPostulaciones === 'todas' ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                    backgroundColor: filtroPostulaciones === 'todas' ? '#eff6ff' : 'white',
+                    color: filtroPostulaciones === 'todas' ? '#1d4ed8' : '#475569',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Todas ({postulacionesEmpresa.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFiltroPostulaciones('pendientes')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    border: filtroPostulaciones === 'pendientes' ? '1px solid #d97706' : '1px solid #cbd5e1',
+                    backgroundColor: filtroPostulaciones === 'pendientes' ? '#fef3c7' : 'white',
+                    color: filtroPostulaciones === 'pendientes' ? '#92400e' : '#475569',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Pendientes ({postulacionesPendientes.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBloqueActivo(null)}
+                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#475569', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+
+            {postulacionesVisibles.length === 0 ? (
+              <p style={{ margin: 0, color: '#64748b', fontSize: '0.92rem' }}>
+                {filtroPostulaciones === 'pendientes'
+                  ? 'No tienes postulaciones pendientes por revisar.'
+                  : 'Todavía no hay postulaciones registradas en tus ofertas.'}
+              </p>
+            ) : (
+              <div style={{ display: 'grid', gap: '10px', maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' }}>
+                {postulacionesVisibles.map(p => {
+                  const badge = obtenerEstiloEstadoPost(p.estado);
+                  const nombreEstudiante = [p.nombres, p.apellidos].filter(Boolean).join(' ') || 'Estudiante';
+                  return (
+                    <div
+                      key={p.id}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', padding: '12px 16px', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
+                    >
+                      <div style={{ minWidth: '220px', flex: 1 }}>
+                        <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '0.94rem' }}>
+                          {nombreEstudiante}
+                        </div>
+                        <div style={{ fontSize: '0.84rem', color: '#475569', marginTop: '3px' }}>
+                          Práctica: <strong style={{ color: '#1e293b' }}>{p.oferta_titulo}</strong> • Postulado el {formatearFechaSoloDia(p.fecha_postulacion)}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          padding: '4px 10px',
+                          borderRadius: '20px',
+                          fontSize: '0.76rem',
+                          fontWeight: '700',
+                          backgroundColor: badge.bg,
+                          color: badge.color,
+                          border: `1px solid ${badge.border}`
+                        }}>
+                          {p.estado}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => abrirOfertaDesdeResumen(p.oferta_id, p.oferta_titulo)}
+                          style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid #bfdbfe', backgroundColor: 'white', color: '#1d4ed8', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                          Revisar en oferta
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {bloqueActivo === 'caducidad' && (
+          <section style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #cbd5e1', padding: '22px', marginBottom: '28px', boxShadow: '0 10px 25px -10px rgba(15, 23, 42, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
+              <div>
+                <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1.1rem', fontWeight: '800' }}>
+                  Detalle de ofertas y postulaciones caducadas
+                </h4>
+                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.85rem' }}>
+                  Revisa prácticas cerradas por fecha límite, desactivadas o postulaciones cuyo plazo expiró.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBloqueActivo(null)}
+                style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#475569', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {totalCaducado === 0 ? (
+              <div style={{ padding: '14px 16px', borderRadius: '10px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', fontSize: '0.9rem', fontWeight: '600' }}>
+                Todo está vigente: no tienes ofertas caducadas ni postulaciones con plazo vencido.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '18px' }}>
+                {ofertasCaducadas.length > 0 && (
+                  <div>
+                    <h5 style={{ margin: '0 0 10px', fontSize: '0.9rem', fontWeight: '700', color: '#991b1b' }}>
+                      Ofertas caducadas o cerradas ({ofertasCaducadas.length})
+                    </h5>
+                    <div style={{ display: 'grid', gap: '8px', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {ofertasCaducadas.map(o => {
+                        const fechaVencida = esFechaVencida(o.fecha_cierre);
+                        const desactivada = o.activa === false;
+                        const motivo = fechaVencida && desactivada
+                          ? 'Fecha límite vencida y desactivada'
+                          : fechaVencida
+                            ? 'Fecha límite vencida'
+                            : 'Desactivada';
+                        return (
+                          <div
+                            key={o.id}
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '11px 14px', borderRadius: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca' }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '0.92rem' }}>{o.titulo}</div>
+                              <div style={{ fontSize: '0.82rem', color: '#7f1d1d', marginTop: '2px' }}>
+                                {motivo} • Cierre: {formatearFechaSoloDia(o.fecha_cierre)}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => verPostulantes(o)}
+                              style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #fecaca', backgroundColor: 'white', color: '#991b1b', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
+                            >
+                              Ver postulantes
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {postulacionesCaducadas.length > 0 && (
+                  <div>
+                    <h5 style={{ margin: '0 0 10px', fontSize: '0.9rem', fontWeight: '700', color: '#9a3412' }}>
+                      Postulaciones caducadas o sin respuesta ({postulacionesCaducadas.length})
+                    </h5>
+                    <div style={{ display: 'grid', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {postulacionesCaducadas.map(p => (
+                        <div
+                          key={p.id}
+                          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '11px 14px', borderRadius: '10px', backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '0.92rem' }}>
+                              {[p.nombres, p.apellidos].filter(Boolean).join(' ') || 'Estudiante'} — {p.oferta_titulo}
+                            </div>
+                            <div style={{ fontSize: '0.82rem', color: '#9a3412', marginTop: '2px' }}>
+                              Estado: <strong>{p.estado}</strong>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => abrirOfertaDesdeResumen(p.oferta_id, p.oferta_titulo)}
+                            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #fed7aa', backgroundColor: 'white', color: '#9a3412', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
+                          >
+                            Ver oferta
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
             <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.5rem', fontWeight: '800' }}>Tus Ofertas Publicadas</h3>
@@ -164,7 +610,7 @@ export default function MisOfertas() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '24px' }}>
             {ofertas.map(o => {
-              const cerrada = new Date(o.fecha_cierre) < new Date();
+              const cerrada = esOfertaCaducada(o);
               return (
                 <div
                   key={o.id}
@@ -193,7 +639,7 @@ export default function MisOfertas() {
                     {/* Fecha límite */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.83rem', color: '#64748b', fontWeight: '500', marginBottom: '16px' }}>
                       <IconCalendar />
-                      <span>Cierre de postulaciones: <strong style={{ color: '#334155' }}>{new Date(o.fecha_cierre).toLocaleDateString()}</strong></span>
+                      <span>Cierre de postulaciones: <strong style={{ color: '#334155' }}>{formatearFechaSoloDia(o.fecha_cierre)}</strong></span>
                     </div>
 
                     {/* Atributos (Sin emojis, con íconos SVG limpios) */}

@@ -247,6 +247,21 @@ const obtenerPostulacionesPorOferta = async (oferta_id, empresa_id) => {
     return result.rows;
 };
 
+const obtenerPostulacionesPorEmpresa = async (empresa_id) => {
+    const result = await db.query(`
+        SELECT p.id, p.oferta_id, p.fecha_postulacion, p.estado, p.telefono, p.correo_contacto, p.cv_path,
+               o.titulo AS oferta_titulo, o.fecha_cierre, o.activa,
+               s.nombres, s.apellidos,
+               (p.estado = 'Pendiente' AND o.fecha_cierre::date + ($2::integer + 1) > (CURRENT_TIMESTAMP AT TIME ZONE $3)::date) AS puede_decidir
+        FROM postulaciones p
+        JOIN ofertas o ON o.id = p.oferta_id
+        JOIN estudiantes s ON s.id = p.estudiante_id
+        WHERE o.empresa_id = $1
+        ORDER BY p.fecha_postulacion DESC
+    `, [empresa_id, DIAS_ABANDONO_POSTULACION, ZONA_HORARIA]);
+    return result.rows;
+};
+
 const obtenerPostulacionesEstudiante = async (estudiante_id) => {
     const query = `
         SELECT p.id, p.fecha_postulacion, p.estado, o.id as oferta_id, o.titulo, e.nombre_empresa
@@ -265,5 +280,6 @@ module.exports = {
     sanearPostulacionesInvalidas,
     decidirPostulacion,
     obtenerPostulacionesEstudiante,
-    obtenerPostulacionesPorOferta
+    obtenerPostulacionesPorOferta,
+    obtenerPostulacionesPorEmpresa
 };
