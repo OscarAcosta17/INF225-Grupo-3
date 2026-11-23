@@ -1,5 +1,5 @@
 const pool = require('../../db');
-const { transporter } = require('../services/emailService');
+const { enviarCorreo } = require('../services/emailService');
 
 
 const codigosVerificacion = new Map();
@@ -36,8 +36,7 @@ const enviarCodigoRegistro = async (req, res) => {
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
     codigosVerificacion.set(correoLimpio, codigo);
 
-    await transporter.sendMail({
-      from: '"ChambaHub" <chambahub.usm@gmail.com>',
+    await enviarCorreo({
       to: correoLimpio,
       subject: 'Código de Verificación - ChambaHub',
       text: `Tu código de verificación es: ${codigo}\n\nIngrésalo en la página para completar tu registro.`
