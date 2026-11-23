@@ -250,6 +250,27 @@ const createTables = async () => {
       (1, 2, 'TechCorp', 'Empresa de tecnologia lider.')
       ON CONFLICT (id) DO NOTHING;
 
+      SELECT setval('usuarios_id_seq', (SELECT COALESCE(MAX(id), 1) FROM usuarios));
+      SELECT setval('estudiantes_id_seq', (SELECT COALESCE(MAX(id), 1) FROM estudiantes));
+      SELECT setval('empresas_id_seq', (SELECT COALESCE(MAX(id), 1) FROM empresas));
+
+      INSERT INTO usuarios (correo, contrasena_hash, rol) VALUES
+      ('estudiante2@usm.cl', '1234', 'estudiante'),
+      ('empresa2@innova.com', '1234', 'empresa')
+      ON CONFLICT (correo) DO NOTHING;
+
+      INSERT INTO estudiantes (usuario_id, nombres, apellidos, perfil_configurado)
+      SELECT id, 'Maria', 'Gonzalez', true
+      FROM usuarios
+      WHERE correo = 'estudiante2@usm.cl'
+      ON CONFLICT (usuario_id) DO NOTHING;
+
+      INSERT INTO empresas (usuario_id, nombre_empresa, descripcion)
+      SELECT id, 'InnovaSoft', 'Empresa de desarrollo de software y soluciones digitales.'
+      FROM usuarios
+      WHERE correo = 'empresa2@innova.com'
+      ON CONFLICT (usuario_id) DO NOTHING;
+
       INSERT INTO ofertas (id, empresa_id, titulo, descripcion, requisitos, fecha_cierre, localidad, modalidad, remuneracion, duracion) VALUES
       (1, 1, 'Desarrollador Frontend Junior', 'Desarrollo en React', 'Saber React', '2027-12-31', 'Santiago', 'Hibrido', '$350.000 mensuales', '3 meses'),
       (2, 1, 'Analista de Datos', 'Analisis con Python', 'Python, SQL', '2027-12-31', 'Valparaiso', 'Remoto', 'No pagada', '2 meses'),
@@ -307,9 +328,10 @@ const createTables = async () => {
       (1, '2026-11-02', '09:00', '17:30', 8.50, 'Desarrollo de componentes React para el dashboard y conexión inicial a la API REST.', 'Implementar validaciones de formulario', 'Jornada fluida, sin bloqueos técnicos.')
       ON CONFLICT (estudiante_id, fecha) DO NOTHING;
       
-      SELECT setval('ofertas_id_seq', (SELECT MAX(id) FROM ofertas));
-      SELECT setval('usuarios_id_seq', (SELECT MAX(id) FROM usuarios));
-      SELECT setval('empresas_id_seq', (SELECT MAX(id) FROM empresas));
+      SELECT setval('ofertas_id_seq', (SELECT COALESCE(MAX(id), 1) FROM ofertas));
+      SELECT setval('usuarios_id_seq', (SELECT COALESCE(MAX(id), 1) FROM usuarios));
+      SELECT setval('estudiantes_id_seq', (SELECT COALESCE(MAX(id), 1) FROM estudiantes));
+      SELECT setval('empresas_id_seq', (SELECT COALESCE(MAX(id), 1) FROM empresas));
       SELECT setval('bitacoras_id_seq', (SELECT COALESCE(MAX(id), 1) FROM bitacoras));
       INSERT INTO tramites_convalidacion (
         id, estudiante_id, tipo_flujo, tipo_practica,
