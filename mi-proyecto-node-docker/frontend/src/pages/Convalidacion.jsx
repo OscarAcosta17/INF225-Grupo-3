@@ -635,6 +635,21 @@ export default function Convalidacion() {
                           <strong>Resolución de Apelación:</strong> {tramiteActual.apelacion_resolucion}
                         </p>
                       )}
+                      {tramiteActual.decision_ia_json && (
+                        <p style={{ margin: '10px 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                          Resolución emitida por el asistente IA convalidador a partir de la planilla estandarizada de tu trámite.
+                        </p>
+                      )}
+                      {tramiteActual.planilla_path && (
+                        <a
+                          href={apiUrl(tramiteActual.planilla_path)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '12px', padding: '8px 14px', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '8px', textDecoration: 'none', fontSize: '0.85rem', fontWeight: '600', border: '1px solid #cbd5e1' }}
+                        >
+                          <IconFileText /> Descargar planilla de convalidación (Excel)
+                        </a>
+                      )}
                     </div>
                   )}
 
@@ -848,14 +863,24 @@ export default function Convalidacion() {
                                   <IconFileText /> Informe Final
                                 </a>
                               )}
-                              {item.pdf_apelacion_path && (
+                              {(item.apelacion_pdf_path || item.pdf_apelacion_path) && (
                                 <a
-                                  href={getFileUrl(item.pdf_apelacion_path)}
+                                  href={getFileUrl(item.apelacion_pdf_path || item.pdf_apelacion_path)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', backgroundColor: '#f1f5f9', color: '#0f172a', borderRadius: '8px', textDecoration: 'none', fontSize: '0.82rem', fontWeight: '600', border: '1px solid #cbd5e1' }}
                                 >
                                   <IconFileText /> Respaldo de Apelación
+                                </a>
+                              )}
+                              {item.planilla_path && (
+                                <a
+                                  href={apiUrl(item.planilla_path)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', backgroundColor: '#f1f5f9', color: '#0f172a', borderRadius: '8px', textDecoration: 'none', fontSize: '0.82rem', fontWeight: '600', border: '1px solid #cbd5e1' }}
+                                >
+                                  <IconFileText /> Planilla (Excel)
                                 </a>
                               )}
                             </div>

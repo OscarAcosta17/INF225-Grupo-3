@@ -1,4 +1,7 @@
 const pool = require('../../db');
+const iaCfg = require('../config/iaConfig');
+const { procesarTramite } = require('../services/convalidadorIAService');
+const { extraerTextoPdf } = require('../services/planillaService');
 
 let columnaPostulacionVerificada = false;
 const ensurePostulacionColumn = async () => {
@@ -64,7 +67,7 @@ const iniciarPracticaNueva = async (req, res) => {
     if (postulacionIdVal) {
       const postCheck = await pool.query(
         `SELECT id FROM postulaciones
-         WHERE id = $1 AND estudiante_id = $2 AND estado = 'Aceptada'`,
+         WHERE id = $1 AND estudiante_id = $2 AND estado IN ('Aceptada', 'Aceptado')`,
         [postulacionIdVal, estudiante_id]
       );
       if (postCheck.rows.length === 0) {
@@ -184,6 +187,16 @@ const solicitarConvalidacionExperiencia = async (req, res) => {
       ]
     );
 
+    // Guardamos el texto del PDF en la BD: en Render el disco es efímero y el archivo puede desaparecer.
+    try {
+      const texto = await extraerTextoPdf(pdfPath);
+      if (texto) {
+        await pool.query('UPDATE tramites_convalidacion SET pdf_actividades_texto = $1 WHERE id = $2', [texto, result.rows[0].id]);
+      }
+    } catch (e) {
+      console.error('No se pudo guardar el texto del PDF de actividades:', e.message);
+    }
+
     res.status(201).json({
       mensaje: 'Solicitud de convalidación registrada. Se ha solicitado la evaluación al supervisor.',
       tramite: result.rows[0]
@@ -237,7 +250,7 @@ const obtenerTramitesEstudiante = async (req, res) => {
        JOIN empresas emp ON o.empresa_id = emp.id
        JOIN usuarios u ON emp.usuario_id = u.id
        WHERE p.estudiante_id = $1
-         AND p.estado = 'Aceptada'
+         AND p.estado IN ('Aceptada', 'Aceptado')
          AND NOT EXISTS (
            SELECT 1
            FROM tramites_convalidacion tc
@@ -248,7 +261,8 @@ const obtenerTramitesEstudiante = async (req, res) => {
     );
 
     res.json({
-      tramites: tramitesRes.rows,
+      // planilla_json es pesado y se consulta aparte (GET /:id/planilla)
+      tramites: tramitesRes.rows.map(({ planilla_json, ...resto }) => resto),
       bitacora_actual: {
         horas_acumuladas: Number(bitacoraRes.rows[0].horas_acumuladas),
         dias_registrados: Number(bitacoraRes.rows[0].dias_registrados)
@@ -271,7 +285,14 @@ const subirInformeFinal = async (req, res) => {
   }
 
   try {
-    const check = await pool.query('SELECT * FROM tramites_convalidacion WHERE id = $1', [id]);
+    const check = await pool.query(
+      `SELECT *,
+              TO_CHAR(fecha_inicio, 'YYYY-MM-DD') AS fecha_inicio_fmt,
+              TO_CHAR(fecha_fin, 'YYYY-MM-DD') AS fecha_fin_fmt
+       FROM tramites_convalidacion
+       WHERE id = $1`,
+      [id]
+    );
     if (check.rows.length === 0) {
       return res.status(404).json({ error: 'Trámite no encontrado.' });
     }
@@ -292,8 +313,9 @@ const subirInformeFinal = async (req, res) => {
               horas_trabajadas, actividades, actividades_pendientes, observaciones
        FROM bitacoras
        WHERE estudiante_id = $1
+         AND fecha BETWEEN $2::date AND $3::date
        ORDER BY fecha ASC`,
-      [estudiante_id]
+      [estudiante_id, tramite.fecha_inicio_fmt, tramite.fecha_fin_fmt]
     );
 
     const totalHoras = bitacorasRes.rows.reduce((acc, r) => acc + Number(r.horas_trabajadas), 0);
@@ -374,6 +396,12 @@ const presentarApelacion = async (req, res) => {
       mensaje: 'Apelación registrada exitosamente. Será revisada nuevamente por el encargado.',
       tramite: updated.rows[0]
     });
+
+    if (iaCfg.AUTO_PROCESAR) {
+      procesarTramite(id).catch((e) =>
+        console.error(`[IA] No se pudo procesar automáticamente la apelación del trámite ${id}:`, e.message)
+      );
+    }
   } catch (error) {
     console.error('Error al presentar apelación:', error);
     res.status(500).json({ error: 'Error interno al registrar la apelación.' });
@@ -392,7 +420,7 @@ const listarTramitesPendientesIA = async (req, res) => {
        LEFT JOIN evaluaciones_supervisor e ON e.tramite_id = t.id
        ORDER BY t.fecha_actualizacion DESC`
     );
-    res.json(result.rows);
+    res.json(result.rows.map(({ planilla_json, ...resto }) => resto));
   } catch (error) {
     console.error('Error al listar trámites:', error);
     res.status(500).json({ error: 'Error al obtener trámites.' });
@@ -426,7 +454,26 @@ const registrarEvaluacionSupervisor = async (req, res) => {
     comunicacion_efectiva, manejo_tic
   } = req.body;
 
+  // Validación: resumen obligatorio y los 11 criterios con enteros de 1 a 5 estrellas.
+  const criterios = {
+    capacidad, confianza, aplicacion_esfuerzo, adaptabilidad, iniciativa,
+    trabajo_equipo, conocimientos, asistencia_puntualidad, resultados,
+    comunicacion_efectiva, manejo_tic
+  };
+  const invalidos = Object.entries(criterios)
+    .filter(([, v]) => !Number.isInteger(Number(v)) || v === null || v === '' || Number(v) < 1 || Number(v) > 5)
+    .map(([k]) => k);
+  if (invalidos.length > 0) {
+    return res.status(400).json({ error: `Cada criterio debe ser un entero de 1 a 5. Faltan o son inválidos: ${invalidos.join(', ')}.` });
+  }
+  if (!resumen_tareas || !String(resumen_tareas).trim()) {
+    return res.status(400).json({ error: 'El resumen de tareas del supervisor es obligatorio.' });
+  }
+
   try {
+    const existe = await pool.query('SELECT 1 FROM tramites_convalidacion WHERE id = $1', [id]);
+    if (existe.rows.length === 0) return res.status(404).json({ error: 'Trámite no encontrado.' });
+
     await pool.query(
       `INSERT INTO evaluaciones_supervisor (
         tramite_id, resumen_tareas, observaciones,
@@ -467,6 +514,13 @@ const registrarEvaluacionSupervisor = async (req, res) => {
     );
 
     res.json({ mensaje: 'Evaluación del supervisor registrada.', tramite: updated.rows[0] });
+
+    // Al quedar completa la evaluación: planilla + decisión de la IA (en segundo plano).
+    if (iaCfg.AUTO_PROCESAR) {
+      procesarTramite(id).catch((e) =>
+        console.error(`[IA] No se pudo procesar automáticamente el trámite ${id}:`, e.message)
+      );
+    }
   } catch (error) {
     console.error('Error en evaluación de supervisor:', error);
     res.status(500).json({ error: 'Error al guardar la evaluación del supervisor.' });

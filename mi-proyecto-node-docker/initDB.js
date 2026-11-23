@@ -164,6 +164,12 @@ const createTables = async () => {
         fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- 9.1 Columnas para la planilla estandarizada y la decisión de la IA (RS7)
+    ALTER TABLE tramites_convalidacion ADD COLUMN IF NOT EXISTS planilla_json JSONB;
+    ALTER TABLE tramites_convalidacion ADD COLUMN IF NOT EXISTS planilla_path VARCHAR(255);
+    ALTER TABLE tramites_convalidacion ADD COLUMN IF NOT EXISTS decision_ia_json JSONB;
+    ALTER TABLE tramites_convalidacion ADD COLUMN IF NOT EXISTS pdf_actividades_texto TEXT;
+
     -- 10. Tabla de Evaluación del Supervisor
     CREATE TABLE IF NOT EXISTS evaluaciones_supervisor (
         id SERIAL PRIMARY KEY,

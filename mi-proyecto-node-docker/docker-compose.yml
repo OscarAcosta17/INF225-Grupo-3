@@ -10,6 +10,16 @@ services:
       - DB_USER=user
       - DB_PASSWORD=password
       - DB_NAME=mydb
+      # IA de convalidación (RS7). Crea un archivo .env junto a este docker-compose.yml con XAI_API_KEY=...
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - XAI_MODEL=${XAI_MODEL:-grok-4}
+      - IA_BASE_URL=${IA_BASE_URL:-}
+      - IA_AUTO_PROCESAR=${IA_AUTO_PROCESAR:-true}
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+      - IA_MAX_LLAMADAS_DIA=${IA_MAX_LLAMADAS_DIA:-150}
+      - IA_NOTA_BAJA_MAXIMA=${IA_NOTA_BAJA_MAXIMA:-3}
+      - IA_MAX_CRITERIOS_BAJOS=${IA_MAX_CRITERIOS_BAJOS:-2}
+      - IA_TIMEOUT_MS=${IA_TIMEOUT_MS:-90000}
     depends_on:
       - postgres_db
     volumes:

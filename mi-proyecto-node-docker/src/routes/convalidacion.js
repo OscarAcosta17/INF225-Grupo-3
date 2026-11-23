@@ -16,6 +16,7 @@ const {
   registrarEvaluacionSupervisor,
   resolverEncargado
 } = require('../controllers/convalidacionController');
+const { requiereTokenAdmin, generarPlanilla, obtenerPlanilla, procesarConIA, descargarPlanillaExcel } = require('../controllers/iaConvalidacionController');
 
 const uploadDir = path.resolve(__dirname, '../../uploads/convalidaciones');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -49,5 +50,11 @@ router.get('/pendientes', listarTramitesPendientesIA);
 router.put('/:id/confirmar-supervisor', confirmarPracticaSupervisor);
 router.post('/:id/evaluacion-supervisor', registrarEvaluacionSupervisor);
 router.put('/:id/resolver-encargado', resolverEncargado);
+
+// IA: planilla estandarizada + decisión del asistente convalidador
+router.post('/:id/planilla', requiereTokenAdmin, generarPlanilla);
+router.get('/:id/planilla', obtenerPlanilla);
+router.get('/:id/planilla.xlsx', descargarPlanillaExcel);
+router.post('/:id/procesar-ia', requiereTokenAdmin, procesarConIA);
 
 module.exports = router;
