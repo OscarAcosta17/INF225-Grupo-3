@@ -83,6 +83,10 @@ const iniciarPracticaNueva = async (req, res) => {
       }
     }
 
+    const estadoInicial = postulacionIdVal
+      ? 'Práctica confirmada / en curso'
+      : 'Pendiente de confirmación del supervisor';
+
     const result = await pool.query(
       `INSERT INTO tramites_convalidacion (
         estudiante_id, postulacion_id, tipo_flujo, tipo_practica,
@@ -90,18 +94,21 @@ const iniciarPracticaNueva = async (req, res) => {
         supervisor_nombre, supervisor_correo, supervisor_telefono,
         modalidad, fecha_inicio, fecha_fin, horas_comprometidas,
         estado, tiempo_estimado_dias
-      ) VALUES ($1, $2, 'practica_nueva', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'Pendiente de confirmación del supervisor', 5)
+      ) VALUES ($1, $2, 'practica_nueva', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 5)
       RETURNING *`,
       [
         estudiante_id, postulacionIdVal, tipo_practica,
         empresa_nombre.trim(), empresa_rut.trim(), empresa_direccion.trim(),
         supervisor_nombre.trim(), supervisor_correo.trim(), supervisor_telefono.trim(),
-        modalidad, fecha_inicio, fecha_fin, Number(horas_comprometidas) || 360
+        modalidad, fecha_inicio, fecha_fin, Number(horas_comprometidas) || 360,
+        estadoInicial
       ]
     );
 
     res.status(201).json({
-      mensaje: 'Solicitud de práctica nueva enviada. Pendiente de confirmación del supervisor.',
+      mensaje: postulacionIdVal
+        ? 'Práctica confirmada y en curso. Ya puedes registrar jornadas en tu Bitácora Diaria.'
+        : 'Solicitud de práctica nueva enviada. Pendiente de confirmación del supervisor.',
       tramite: result.rows[0]
     });
   } catch (error) {

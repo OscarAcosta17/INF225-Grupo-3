@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiUrl, getFileUrl } from '../config/api';
 
 const IconArrowLeft = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
@@ -40,6 +40,7 @@ const FORM_A_INICIAL = {
 
 export default function Convalidacion() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const usuario = JSON.parse(localStorage.getItem('usuario'));
 
   const [tramites, setTramites] = useState([]);
@@ -93,7 +94,7 @@ export default function Convalidacion() {
     setVistaFormulario(destinoFlujo);
   };
 
-  const handleSeleccionarPracticaAceptada = (postulacionId) => {
+  const handleSeleccionarPracticaAceptada = (postulacionId, listaPracticas = practicasAceptadas) => {
     setPostulacionSeleccionadaId(postulacionId);
     if (!postulacionId) {
       setFormA((prev) => ({
@@ -106,15 +107,18 @@ export default function Convalidacion() {
       return;
     }
 
-    const seleccionada = practicasAceptadas.find(
+    const seleccionada = listaPracticas.find(
       (p) => String(p.postulacion_id) === String(postulacionId)
     );
     if (!seleccionada) return;
 
-    const modalidadesValidas = ['Presencial', 'Hibrido', 'Remoto'];
-    const modalidadNormalizada = modalidadesValidas.includes(seleccionada.modalidad)
-      ? seleccionada.modalidad
-      : 'Presencial';
+    const modalidadRaw = String(seleccionada.modalidad || '').trim();
+    const modalidadNormalizada =
+      modalidadRaw === 'Híbrido' || modalidadRaw === 'Hibrido'
+        ? 'Hibrido'
+        : modalidadRaw === 'Remoto'
+          ? 'Remoto'
+          : 'Presencial';
 
     const matchMeses = String(seleccionada.duracion || '').match(/(\d+)/);
     const horasEstimadas = matchMeses
@@ -130,26 +134,51 @@ export default function Convalidacion() {
     }));
   };
 
+  const handleIniciarDesdeAceptada = (postulacionId, listaPracticas = practicasAceptadas, listaTramites = tramites) => {
+    setErrorMsg('');
+    handleSeleccionarPracticaAceptada(String(postulacionId), listaPracticas);
+    const ultimoTramite = listaTramites.length > 0 ? listaTramites[0] : null;
+    if (ultimoTramite?.estado === 'Rechazada' && !ultimoTramite?.apelacion_estado) {
+      setFlujoPendienteConfirmacion('flujoA');
+      return;
+    }
+    setVistaFormulario('flujoA');
+  };
+
   const hoy = new Date();
   const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
 
-  useEffect(() => {
-    if (!usuario || usuario.rol !== 'estudiante') {
-      navigate('/login');
-      return;
+  const aplicarDatosConvalidacion = (data) => {
+    const listaTramites = data.tramites || [];
+    const listaAceptadas = data.practicas_aceptadas || [];
+    setTramites(listaTramites);
+    setBitacoraStats(data.bitacora_actual || { horas_acumuladas: 0, dias_registrados: 0 });
+    setPracticasAceptadas(listaAceptadas);
+
+    const postulacionIdParam = searchParams.get('postulacionId');
+    if (postulacionIdParam) {
+      const tramiteMasReciente = listaTramites.length > 0 ? listaTramites[0] : null;
+      const permiteNuevo = !tramiteMasReciente ||
+        tramiteMasReciente.estado === 'Aprobada' || (
+          tramiteMasReciente.estado === 'Rechazada' &&
+          (!tramiteMasReciente.apelacion_estado || tramiteMasReciente.apelacion_estado === 'Resuelta')
+        );
+      const encontrada = listaAceptadas.some(
+        (p) => String(p.postulacion_id) === String(postulacionIdParam)
+      );
+      if (permiteNuevo && encontrada) {
+        handleIniciarDesdeAceptada(postulacionIdParam, listaAceptadas, listaTramites);
+      }
+      setSearchParams({}, { replace: true });
     }
-    cargarDatos();
-  }, []);
+  };
 
   const cargarDatos = async () => {
     setLoading(true);
     try {
       const res = await fetch(apiUrl(`/api/convalidacion/estudiante/${usuario.id}`));
       if (res.ok) {
-        const data = await res.json();
-        setTramites(data.tramites || []);
-        setBitacoraStats(data.bitacora_actual || { horas_acumuladas: 0, dias_registrados: 0 });
-        setPracticasAceptadas(data.practicas_aceptadas || []);
+        aplicarDatosConvalidacion(await res.json());
       }
     } catch (err) {
       console.error('Error cargando datos de convalidación:', err);
@@ -157,6 +186,30 @@ export default function Convalidacion() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!usuario || usuario.rol !== 'estudiante') {
+      navigate('/login');
+      return;
+    }
+
+    let activo = true;
+    fetch(apiUrl(`/api/convalidacion/estudiante/${usuario.id}`))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (activo && data) aplicarDatosConvalidacion(data);
+      })
+      .catch((err) => {
+        console.error('Error cargando datos de convalidación:', err);
+      })
+      .finally(() => {
+        if (activo) setLoading(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   // Trámite principal más reciente e historial de anteriores
   const tramiteActual = tramites.length > 0 ? tramites[0] : null;
@@ -214,7 +267,7 @@ export default function Convalidacion() {
         setVistaFormulario('selector');
         cargarDatos();
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Error de conexión con el servidor.');
     } finally {
       setEnviando(false);
@@ -267,7 +320,7 @@ export default function Convalidacion() {
         setVistaFormulario('selector');
         cargarDatos();
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Error de conexión con el servidor.');
     } finally {
       setEnviando(false);
@@ -299,7 +352,7 @@ export default function Convalidacion() {
         setPdfInformeFinal(null);
         cargarDatos();
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Error de conexión al subir el informe.');
     } finally {
       setEnviando(false);
@@ -334,7 +387,7 @@ export default function Convalidacion() {
         setPdfApelacion(null);
         cargarDatos();
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Error de conexión al enviar apelación.');
     } finally {
       setEnviando(false);
@@ -425,6 +478,69 @@ export default function Convalidacion() {
           <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>Cargando estado del trámite...</div>
         ) : (
           <>
+            {/* Recuadro de prácticas aceptadas disponibles */}
+            {vistaFormulario === 'selector' && practicasAceptadas.length > 0 && (
+              <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #bbf7d0', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.08)', padding: '22px 26px', marginBottom: '26px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803d', fontWeight: '800', fontSize: '1.08rem' }}>
+                      <IconCheckCircle />
+                      <span>Tienes prácticas aceptadas listas para iniciar</span>
+                    </div>
+                    <p style={{ margin: '5px 0 0', fontSize: '0.88rem', color: '#475569' }}>
+                      Una empresa ya aceptó tu postulación en ChambaHub. Completa los datos del supervisor y fechas para activarla y habilitar tu Bitácora Diaria de inmediato.
+                    </p>
+                  </div>
+                  <span style={{ backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', padding: '4px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '700' }}>
+                    {practicasAceptadas.length} {practicasAceptadas.length === 1 ? 'disponible' : 'disponibles'}
+                  </span>
+                </div>
+
+                {!puedeIniciarNuevo && (
+                  <div style={{ padding: '10px 14px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', fontSize: '0.84rem', color: '#475569', marginBottom: '14px' }}>
+                    Ya tienes un trámite en curso. Cuando finalice podrás iniciar otra práctica aceptada.
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {practicasAceptadas.map((p) => (
+                    <div
+                      key={p.postulacion_id}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '14px 18px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '0.98rem' }}>
+                          {p.oferta_titulo}
+                        </div>
+                        <div style={{ fontSize: '0.84rem', color: '#334155', marginTop: '3px' }}>
+                          <strong>{p.empresa_nombre}</strong> • {p.modalidad} • {p.duracion} • {p.localidad}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={!puedeIniciarNuevo}
+                        onClick={() => handleIniciarDesdeAceptada(String(p.postulacion_id))}
+                        style={{
+                          padding: '9px 16px',
+                          backgroundColor: puedeIniciarNuevo ? '#16a34a' : '#cbd5e1',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: '700',
+                          fontSize: '0.84rem',
+                          cursor: puedeIniciarNuevo ? 'pointer' : 'not-allowed',
+                          boxShadow: puedeIniciarNuevo ? '0 2px 6px rgba(22, 163, 74, 0.25)' : 'none'
+                        }}
+                      >
+                        Completar supervisor e iniciar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Seguimiento */}
             {tramiteActual && vistaFormulario === 'selector' && (
               <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', overflow: 'hidden', marginBottom: '28px' }}>
@@ -963,6 +1079,7 @@ export default function Convalidacion() {
                     onClick={() => {
                       setErrorMsg('');
                       setPostulacionSeleccionadaId('');
+                      setFormA(FORM_A_INICIAL);
                       setVistaFormulario('selector');
                     }}
                     style={cancelButtonStyle}
@@ -991,7 +1108,7 @@ export default function Convalidacion() {
                     </select>
                     {postulacionSeleccionadaId && (
                       <div style={{ marginTop: '8px', fontSize: '0.82rem', color: '#1e40af' }}>
-                        Se precargaron la empresa, modalidad, horas y correo de contacto. Completa el RUT, dirección, datos directos de tu supervisor y fechas exactas.
+                        Se precargaron la empresa, modalidad, horas y correo de contacto. Completa el RUT, dirección, datos de tu supervisor y fechas: al enviar, la práctica quedará en curso y se habilitará de inmediato <strong>Mi Bitácora Diaria</strong>.
                       </div>
                     )}
                   </div>
@@ -1068,8 +1185,12 @@ export default function Convalidacion() {
                     </div>
                   </div>
 
-                  <button type="submit" disabled={enviando} style={{ width: '100%', padding: '13px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '1rem', cursor: 'pointer' }}>
-                    {enviando ? 'Enviando solicitud...' : 'Enviar Solicitud de Práctica Nueva'}
+                  <button type="submit" disabled={enviando} style={{ width: '100%', padding: '13px', backgroundColor: postulacionSeleccionadaId ? '#16a34a' : '#3b82f6', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '1rem', cursor: 'pointer' }}>
+                    {enviando
+                      ? 'Activando práctica...'
+                      : postulacionSeleccionadaId
+                        ? 'Activar Práctica y Habilitar Bitácora'
+                        : 'Enviar Solicitud de Práctica Nueva'}
                   </button>
                 </form>
               </div>
