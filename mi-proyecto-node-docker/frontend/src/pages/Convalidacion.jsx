@@ -215,6 +215,35 @@ export default function Convalidacion() {
   const tramiteActual = tramites.length > 0 ? tramites[0] : null;
   const tramitesAnteriores = tramites.length > 1 ? tramites.slice(1) : [];
 
+  const estadoActual = tramiteActual?.estado;
+  const usuarioId = usuario?.id;
+  useEffect(() => {
+    if (!usuarioId) return;
+    if (estadoActual !== 'En revisión por encargado' && estadoActual !== 'Apelación en revisión') {
+      return;
+    }
+
+    let activo = true;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/convalidacion/estudiante/${usuarioId}`));
+        if (!res.ok || !activo) return;
+        const data = await res.json();
+        if (!activo) return;
+        setTramites(data.tramites || []);
+        setBitacoraStats(data.bitacora_actual || { horas_acumuladas: 0, dias_registrados: 0 });
+        setPracticasAceptadas(data.practicas_aceptadas || []);
+      } catch {
+        // Silencioso durante polling automático
+      }
+    }, 4000);
+
+    return () => {
+      activo = false;
+      clearInterval(timer);
+    };
+  }, [estadoActual, usuarioId]);
+
   const bitacoraHabilitada = tramiteActual?.tipo_flujo === 'practica_nueva' && tramiteActual?.estado === 'Práctica confirmada / en curso';
   const puedeIniciarNuevo = !tramiteActual ||
     tramiteActual.estado === 'Aprobada' || (
@@ -705,6 +734,16 @@ export default function Convalidacion() {
                       </a>
                     )}
                   </div>
+
+                  {/* Aviso de evaluación IA en curso */}
+                  {(tramiteActual.estado === 'En revisión por encargado' || tramiteActual.estado === 'Apelación en revisión') && (
+                    <div style={{ padding: '14px 18px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', color: '#1e40af', marginBottom: '20px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500' }}>
+                      <IconHistory />
+                      <span>
+                        <strong>Evaluación automática en curso:</strong> el asistente IA está revisando los antecedentes y generando la planilla oficial. Esta vista se actualizará automáticamente en unos segundos.
+                      </span>
+                    </div>
+                  )}
 
                   {/* EVALUACIÓN DEL SUPERVISOR */}
                   {tramiteActual.evaluacion_supervisor && (

@@ -21,6 +21,36 @@ const calcularMesesEntreFechas = (inicio, fin) => {
   return Number((diffDias / 30).toFixed(1));
 };
 
+// Registra evaluación automática del supervisor y deja el trámite listo para IA (cuando IA_AUTO_PROCESAR=true).
+const registrarEvaluacionAutomatica = async (tramite) => {
+  const resumenTareas = tramite.tipo_flujo === 'practica_nueva'
+    ? `Actividades de práctica ${tramite.tipo_practica} realizadas en ${tramite.empresa_nombre}, respaldadas en bitácora diaria e informe final.`
+    : `Actividades de experiencia (${tramite.tipo_experiencia || 'laboral'}) realizadas en ${tramite.empresa_nombre}, respaldadas en el documento PDF adjunto.`;
+  const observaciones = 'Evaluación del supervisor registrada automáticamente para procesamiento con el asistente IA.';
+
+  await pool.query(
+    `INSERT INTO evaluaciones_supervisor (
+      tramite_id, resumen_tareas, observaciones,
+      capacidad, confianza, aplicacion_esfuerzo, adaptabilidad, iniciativa,
+      trabajo_equipo, conocimientos, asistencia_puntualidad, resultados,
+      comunicacion_efectiva, manejo_tic
+    ) VALUES ($1, $2, $3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5)
+    ON CONFLICT (tramite_id) DO NOTHING`,
+    [tramite.id, resumenTareas, observaciones]
+  );
+
+  const updated = await pool.query(
+    `UPDATE tramites_convalidacion
+     SET estado = 'En revisión por encargado',
+         fecha_actualizacion = CURRENT_TIMESTAMP
+     WHERE id = $1
+     RETURNING *`,
+    [tramite.id]
+  );
+
+  return updated.rows[0] || tramite;
+};
+
 // Iniciar nueva práctica
 const iniciarPracticaNueva = async (req, res) => {
   const {
@@ -204,9 +234,22 @@ const solicitarConvalidacionExperiencia = async (req, res) => {
       console.error('No se pudo guardar el texto del PDF de actividades:', e.message);
     }
 
+    let tramiteFinal = result.rows[0];
+    if (iaCfg.AUTO_PROCESAR) {
+      tramiteFinal = await registrarEvaluacionAutomatica(tramiteFinal);
+      res.status(201).json({
+        mensaje: 'Solicitud de convalidación registrada. El asistente IA está revisando tus antecedentes automáticamente.',
+        tramite: tramiteFinal
+      });
+      procesarTramite(tramiteFinal.id).catch((e) =>
+        console.error(`[IA] No se pudo procesar automáticamente el trámite ${tramiteFinal.id}:`, e.message)
+      );
+      return;
+    }
+
     res.status(201).json({
       mensaje: 'Solicitud de convalidación registrada. Se ha solicitado la evaluación al supervisor.',
-      tramite: result.rows[0]
+      tramite: tramiteFinal
     });
   } catch (error) {
     console.error('Error al solicitar convalidación:', error);
@@ -351,9 +394,22 @@ const subirInformeFinal = async (req, res) => {
       [informePath, JSON.stringify(resumenSnapshot), id]
     );
 
+    let tramiteFinal = updated.rows[0];
+    if (iaCfg.AUTO_PROCESAR) {
+      tramiteFinal = await registrarEvaluacionAutomatica(tramiteFinal);
+      res.json({
+        mensaje: 'Informe final y resumen de bitácora enviados. El asistente IA está evaluando tu práctica automáticamente.',
+        tramite: tramiteFinal
+      });
+      procesarTramite(tramiteFinal.id).catch((e) =>
+        console.error(`[IA] No se pudo procesar automáticamente el trámite ${tramiteFinal.id}:`, e.message)
+      );
+      return;
+    }
+
     res.json({
       mensaje: 'Informe final y resumen de bitácora enviados. Se ha solicitado la evaluación al supervisor.',
-      tramite: updated.rows[0]
+      tramite: tramiteFinal
     });
   } catch (error) {
     console.error('Error al subir informe final:', error);

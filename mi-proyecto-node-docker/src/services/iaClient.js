@@ -21,9 +21,21 @@ const consumirCupo = () => {
   llamadasHoy++;
 };
 
+const calcularEsperaRetryMs = (resp, detalle) => {
+  const retryAfter = Number(resp.headers.get('retry-after'));
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return Math.min(25000, Math.max(1500, Math.ceil(retryAfter * 1000) + 500));
+  }
+  const match = String(detalle || '').match(/try again in (\d+(?:\.\d+)?)s/i);
+  if (match) {
+    return Math.min(25000, Math.max(1500, Math.ceil(parseFloat(match[1]) * 1000) + 500));
+  }
+  return resp.status === 429 ? 4000 : 1500;
+};
+
 /**
  * Llama al endpoint /chat/completions (formato OpenAI, compatible con xAI/Grok).
- * Reintenta 1 vez ante errores transitorios (429 / 5xx / timeout).
+ * Reintenta ante errores transitorios (429 / 5xx / timeout) respetando Retry-After.
  */
 const chat = async (messages, { temperature = 0.2, json = false } = {}) => {
   if (!iaDisponible()) {
@@ -34,8 +46,9 @@ const chat = async (messages, { temperature = 0.2, json = false } = {}) => {
   const body = { model: cfg.MODEL, messages, temperature };
   if (json) body.response_format = { type: 'json_object' };
 
+  const maxIntentos = 3;
   let ultimoError;
-  for (let intento = 1; intento <= 2; intento++) {
+  for (let intento = 1; intento <= maxIntentos; intento++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), cfg.TIMEOUT_MS);
     try {
@@ -53,7 +66,11 @@ const chat = async (messages, { temperature = 0.2, json = false } = {}) => {
         const detalle = await resp.text().catch(() => '');
         const transitorio = resp.status === 429 || resp.status >= 500;
         ultimoError = new IAError(`La API de IA respondió ${resp.status}: ${detalle.slice(0, 300)}`, 'IA_HTTP');
-        if (transitorio && intento < 2) { await new Promise(r => setTimeout(r, 1500)); continue; }
+        if (transitorio && intento < maxIntentos) {
+          const esperaMs = calcularEsperaRetryMs(resp, detalle);
+          await new Promise(r => setTimeout(r, esperaMs));
+          continue;
+        }
         throw ultimoError;
       }
 
@@ -67,7 +84,7 @@ const chat = async (messages, { temperature = 0.2, json = false } = {}) => {
         err.name === 'AbortError' ? 'La IA tardó demasiado en responder.' : `Error de red con la IA: ${err.message}`,
         'IA_RED'
       );
-      if (intento < 2) { await new Promise(r => setTimeout(r, 1500)); continue; }
+      if (intento < maxIntentos) { await new Promise(r => setTimeout(r, 1500)); continue; }
       throw ultimoError;
     } finally {
       clearTimeout(timer);
